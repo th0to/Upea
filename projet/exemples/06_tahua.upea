@@ -1,0 +1,97 @@
+// Non-régression : tri topologique d'un graphe de tâches (algorithme de Kahn),
+// détection de cycle, et évaluation d'un arbre d'expression.
+
+ohipa indice(liste, x) -> numera {
+    tataitahi i roto 0..roa(liste) {
+        ahani liste[i] == x {
+            hoi i;
+        }
+    }
+    hoi -1;
+}
+
+ohipa tri_topologique(g) {
+    tuu noeuds = motu(g);
+    tuu degre = [];
+    tataitahi n roto noeuds {
+        amui(degre, 0);
+    }
+    tataitahi n roto noeuds {
+        tataitahi v roto pihai(g, n) {
+            tuu j = indice(noeuds, v);
+            degre[j] = degre[j] + 1;
+        }
+    }
+    tuu file = [];
+    tataitahi i roto 0..roa(noeuds) {
+        ahani degre[i] == 0 {
+            amui(file, noeuds[i]);
+        }
+    }
+    tuu resultat = [];
+    tuu tete = 0;
+    tamau tete < roa(file) {
+        tuu n = file[tete];
+        tete = tete + 1;
+        amui(resultat, n);
+        tataitahi v roto pihai(g, n) {
+            tuu j = indice(noeuds, v);
+            degre[j] = degre[j] - 1;
+            ahani degre[j] == 0 {
+                amui(file, v);
+            }
+        }
+    }
+    hoi resultat;
+}
+
+tuu taches = upea {
+    "pêcher" -> "nettoyer",
+    "nettoyer" -> "cuire",
+    "allumer le four" -> "cuire",
+    "cuire" -> "servir",
+    "râper le coco" -> "servir",
+};
+faaite "ordre :", tri_topologique(taches);
+
+tuu boucle = upea { "a" -> "b", "b" -> "c", "c" -> "a" };
+ahani roa(tri_topologique(boucle)) < roa(boucle) {
+    faaite "cycle détecté";
+}
+
+// (3 + 4) * (10 - 2 * 3)
+tuu calcul = tumu("*",
+    tumu("+", tumu(3), tumu(4)),
+    tumu("-", tumu(10), tumu("*", tumu(2), tumu(3))));
+
+ohipa evalue(t) {
+    ahani roa(t.amaa) == 0 {
+        hoi t.hotu;
+    }
+    tuu g = evalue(t.amaa[0]);
+    tuu d = evalue(t.amaa[1]);
+    ahani t.hotu == "+" {
+        hoi g + d;
+    } taae ahani t.hotu == "-" {
+        hoi g - d;
+    } taae ahani t.hotu == "*" {
+        hoi g * d;
+    }
+    hoi g / d;
+}
+
+ohipa ecrit(t) -> parau {
+    ahani roa(t.amaa) == 0 {
+        hoi parau(t.hotu);
+    }
+    hoi "(" + ecrit(t.amaa[0]) + " " + t.hotu + " " + ecrit(t.amaa[1]) + ")";
+}
+
+faaite ecrit(calcul), "=", evalue(calcul);
+tuu operateurs = 0;
+tataitahi n roto calcul {
+    ahani roa(n.amaa) > 0 {
+        operateurs = operateurs + 1;
+    }
+}
+faaite "opérateurs :", operateurs, "feuilles :", rau(calcul);

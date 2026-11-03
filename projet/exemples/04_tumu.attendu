@@ -1,0 +1,8 @@
+tumu(1, tumu(2, tumu(4), tumu(5)), tumu(3, tumu(6, tumu(7))))
+noeuds : 7 hauteur : 3 somme : 28
+feuilles : [4, 5, 7] tia hape
+profondeur : [1, 2, 4, 5, 3, 6, 7]
+largeur : [1, 2, 3, 4, 5, 6, 7]
+tumu(2, tumu(4), tumu(5), tumu(8))
+nouvelle somme : 45
+tumu("rau") 0 0 tia

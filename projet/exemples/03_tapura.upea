@@ -1,0 +1,44 @@
+// Listes, conditions en chaîne, appartenance, faaea / haere, globale modifiée.
+tuu appels = 0;
+
+ohipa classe(n: numera) -> parau {
+    appels = appels + 1;
+    ahani n % 15 == 0 {
+        hoi "FizzBuzz";
+    } taae ahani n % 3 == 0 {
+        hoi "Fizz";
+    } taae ahani n % 5 == 0 {
+        hoi "Buzz";
+    } taae {
+        hoi parau(n);
+    }
+}
+
+tuu mots = [];
+tataitahi n roto 1..=15 {
+    amui(mots, classe(n));
+}
+faaite mots;
+faaite "appels :", appels;
+
+tuu nombres = [4, 8, 15, 16, 23, 42];
+tuu somme = 0;
+tataitahi x roto nombres {
+    ahani x % 2 == 1 {
+        haere;
+    }
+    ahani x > 20 {
+        faaea;
+    }
+    somme = somme + x;
+}
+faaite "somme des pairs avant 20 :", somme;
+
+faaite 15 roto nombres, 7 roto nombres, eiaha (7 roto nombres);
+nombres[0] = 1;
+faaite nombres[0], nombres[roa(nombres) - 1], nombres[-2], roa(nombres);
+faaite [tia, aore, "a", [1.5]] + [0];
+tuu age = 17;
+faaite age >= 18 anei age == 17 ma eiaha hape;
+faaite "ora" roto "Ia ora na", roa([]);
+faaite 2 <= 3, 2 != 2, 5 < 3, 5 > 3;

@@ -1,0 +1,10 @@
+6 îles : ["Tahiti", "Moorea", "Huahine", "Raiatea", "Bora Bora", "Rangiroa"]
+depuis Tahiti : ["Moorea", "Huahine", "Rangiroa"]
+profondeur : ["Tahiti", "Moorea", "Huahine", "Raiatea", "Bora Bora", "Rangiroa"]
+largeur : ["Tahiti", "Moorea", "Huahine", "Rangiroa", "Raiatea", "Bora Bora"]
+["Tahiti", "Huahine", "Raiatea", "Bora Bora"] 280
+tia hape
+aore
+tia ["Bora Bora", "Raiatea", "Huahine", "Tahiti", "Moorea"]
+tia hape
+upea { 1 -> 2, 2 -> 3 : 5 } upea {}

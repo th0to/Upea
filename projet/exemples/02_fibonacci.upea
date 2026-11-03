@@ -1,0 +1,35 @@
+// Fonctions typées, récursion, intervalles .. et ..=, fonction sans hoi.
+ohipa fibo(n: numera) -> numera {
+    ahani n < 2 {
+        hoi n;
+    }
+    hoi fibo(n - 1) + fibo(n - 2);
+}
+
+ohipa factorielle(n: numera) -> numera {
+    tuu resultat = 1;
+    tataitahi i roto 2..=n {
+        resultat = resultat * i;
+    }
+    hoi resultat;
+}
+
+ohipa salut() {
+    faaite "maeva";
+}
+
+tuu suite = [];
+tataitahi k roto 0..10 {
+    amui(suite, fibo(k));
+}
+faaite suite;
+faaite factorielle(0), factorielle(5), factorielle(20);
+
+tataitahi k roto 3..3 {
+    faaite "jamais";
+}
+tataitahi k roto 3..=3 {
+    faaite "une fois", k;
+}
+salut();
+faaite salut();

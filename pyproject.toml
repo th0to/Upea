@@ -1,0 +1,53 @@
+[project]
+name = "upea"
+version = "0.1.0"
+description = "Upea : un langage aux mots-clés tahitiens, centré sur les arbres et les graphes, transpilé en Python"
+readme = "NOTES.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+# Installé par défaut avec `uv sync`.
+dev = [
+    "pytest>=8.3",
+    "mypy>=1.13",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+# Le dépôt n'est pas un paquet installable : uv gère seulement l'environnement.
+package = false
+
+# --- pytest -------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib", "-ra"]
+norecursedirs = [".*", "__pycache__", "venv", "build", "dist"]
+
+# --- mypy ---------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+pretty = true
+exclude = ['(^|/)\.venv/']
+
+# --- ruff ---------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "I",   # tri des imports
+    "UP",  # syntaxe Python moderne
+    "B",   # bugbear : pièges courants
+    "SIM", # simplifications
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["upea", "outils"]

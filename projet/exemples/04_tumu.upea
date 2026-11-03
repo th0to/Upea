@@ -1,0 +1,36 @@
+// Arbres : construction, champs, récursion, parcours en profondeur et en largeur.
+tuu arbre = tumu(1,
+    tumu(2, tumu(4), tumu(5)),
+    tumu(3, tumu(6, tumu(7))));
+
+ohipa somme(t) -> numera {
+    tuu total = t.hotu;
+    tataitahi enfant roto t.amaa {
+        total = total + somme(enfant);
+    }
+    hoi total;
+}
+
+faaite arbre;
+faaite "noeuds :", roa(arbre), "hauteur :", teitei(arbre), "somme :", somme(arbre);
+faaite "feuilles :", rau(arbre), 6 roto arbre, 9 roto arbre;
+
+tuu prefixe = [];
+tataitahi n roto arbre hohonu {
+    amui(prefixe, n.hotu);
+}
+faaite "profondeur :", prefixe;
+
+tuu largeur = [];
+tataitahi n roto arbre aano {
+    amui(largeur, n.hotu);
+}
+faaite "largeur :", largeur;
+
+arbre.hotu = 10;
+amui(arbre.amaa[0].amaa, tumu(8));
+faaite arbre.amaa[0];
+faaite "nouvelle somme :", somme(arbre);
+
+tuu feuille = tumu("rau");
+faaite feuille, roa(feuille.amaa), teitei(feuille), feuille == tumu("rau");

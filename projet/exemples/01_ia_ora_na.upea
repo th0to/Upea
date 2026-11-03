@@ -1,0 +1,19 @@
+// Variables, constantes, textes, arithmétique, logique, conversions, affichage.
+mau salutation = "Ia ora na";
+tuu nom = "Teva";
+faaite salutation, nom;
+
+tuu a = 7;
+tuu b = 2;
+faaite a + b, a - b, a * b, a / b, a % b;
+faaite -a + b * 3, (a + b) * 3;
+a = a + 1;
+faaite "a vaut", a;
+
+/* Les textes se concatènent avec +,
+   les autres valeurs passent par parau(). */
+faaite "fusion : " + nom + "!";
+faaite tia, hape, aore, tia ma eiaha hape, hape anei hape;
+faaite 1.5 * 2, numera("41") + 1, tuhaa(3), parau(12) + "3";
+faaite "deux\tcolonnes", roa(nom), nom[0], "guillemet : \"";
+faaite;

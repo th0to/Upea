@@ -1,0 +1,44 @@
+// Graphes : le littéral upea, les parcours depuis une île, les plus courts chemins.
+tuu iles = upea {
+    "Tahiti" <-> "Moorea" : 17,
+    "Tahiti" -> "Huahine" : 170,
+    "Moorea" -> "Huahine" : 160,
+    "Huahine" <-> "Raiatea" : 40,
+    "Raiatea" <-> "Bora Bora" : 70,
+    "Tahiti" -> "Rangiroa" : 350,
+};
+
+faaite roa(iles), "îles :", motu(iles);
+faaite "depuis Tahiti :", pihai(iles, "Tahiti");
+
+tuu visite = [];
+tataitahi ile roto iles mai "Tahiti" {
+    amui(visite, ile);
+}
+faaite "profondeur :", visite;
+
+visite = [];
+tataitahi ile roto iles mai "Tahiti" aano {
+    amui(visite, ile);
+}
+faaite "largeur :", visite;
+
+ohipa distance(g, chemin) -> numera {
+    tuu total = 0;
+    tataitahi i roto 1..roa(chemin) {
+        total = total + teiaha(g, chemin[i - 1], chemin[i]);
+    }
+    hoi total;
+}
+
+tuu trajet = ea(iles, "Tahiti", "Bora Bora");
+faaite trajet, distance(iles, trajet);
+faaite tae(iles, "Moorea", "Bora Bora"), tae(iles, "Bora Bora", "Tahiti");
+faaite ea(iles, "Rangiroa", "Tahiti");
+
+taati(iles, "Huahine", "Tahiti", 170);
+faaite tae(iles, "Bora Bora", "Tahiti"), ea(iles, "Bora Bora", "Moorea");
+faaite "Huahine" roto iles, "Hiva Oa" roto iles;
+
+tuu petit = upea { 1 -> 2, 2 -> 3 : 5 };
+faaite petit, upea {};

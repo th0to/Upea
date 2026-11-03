@@ -1,0 +1,4 @@
+ordre : ["pêcher", "allumer le four", "râper le coco", "nettoyer", "cuire", "servir"]
+cycle détecté
+((3 + 4) * (10 - (2 * 3))) = 28
+opérateurs : 4 feuilles : [3, 4, 10, 2, 3]
