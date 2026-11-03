@@ -1,0 +1,59 @@
+      4
+  ┌───┴───┐
+  2       6
+┌─┴─┐   ┌─┴─┐
+1   3   5   7
+en ligne : aifaito [1, 2, 3, 4, 5, 6, 7]
+      20 (N)
+  ┌───┴────┐
+  10 (N)   30 (N)
+┌─┘
+5 (R)
+    9
+  ┌─┴─┐
+  3   4
+┌─┘
+1
+poisson cru
+├── firi firi
+│   ├── chevrettes au curry et au riz
+│   └── ipo au lait de coco
+└── taioro de coco
+    ├── poulet fafa au lait de coco
+    └── uru au feu de bois
+Polynésie
+├── Société
+│   ├── Tahiti
+│   └── Moorea
+└── Tuamotu
+    └── Rangiroa
+[20 | 40]
+├── [10]
+├── [30]
+└── [50]
+upea : 4 nœuds, 3 arcs
+Tahiti   → Moorea (17)
+Moorea   → Tahiti (17), Huahine (160)
+Huahine  ·
+Rangiroa ·
+         Tahiti Moorea Huahine Rangiroa
+Tahiti        ·     17       ·        ·
+Moorea       17      ·     160        ·
+Huahine       ·      ·       ·        ·
+Rangiroa      ·      ·       ·        ·
+en ligne : upea { "Tahiti" <-> "Moorea" : 17, "Moorea" -> "Huahine" : 160, "Rangiroa" }
+upea { "Tahiti", "Huahine", "Rangiroa" } 3
+digraph {
+  n0 [label="1"];
+  n1 [label="2"];
+  n2 [label="3"];
+  n0 -> n1 [label="5", dir=both];
+  n1 -> n2;
+}
+flowchart TD
+  n0["2"]
+  n1["1"]
+  n2[" "]
+  style n2 fill:none,stroke:none
+  n0 --> n1
+  n0 ~~~ n2

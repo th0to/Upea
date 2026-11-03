@@ -1,16 +1,52 @@
 """Étape 8 (suite) : ce que fait le prélude à l'exécution — parcours d'arbres et de
 graphes, fonctions prédéfinies, et erreurs d'exécution traduites."""
 
+import importlib
+import re
+
 import pytest
 
 from outils import lancer
-from upea import execution
 from upea.erreurs import ErreurExecution
+from upea.execution.algorithmes_arbres import _teitei
+from upea.execution.algorithmes_graphes import _ea
+from upea.execution.graphes import _graphe
+from upea.execution.predefinies import _roa
+from upea.execution.tumu import _tumu
+from upea.noeuds import SorteCollection
+from upea.predefinies import PREDEFINIES
+from upea.prelude import MODULES, PRELUDE
 
 
-def test_tous_les_noms_du_prelude_commencent_par_un_souligne() -> None:
-    noms = {n for n in vars(execution) if not n.startswith("__")}
+def espace_du_prelude() -> dict[str, object]:
+    espace: dict[str, object] = {}
+    exec(compile(PRELUDE, "<prelude>", "exec"), espace)
+    return espace
+
+
+@pytest.mark.parametrize("module", MODULES)
+def test_tous_les_noms_du_prelude_commencent_par_un_souligne(module: str) -> None:
+    noms = vars(importlib.import_module(f"upea.execution.{module}"))
+    publics = {n for n in noms if not n.startswith("_")}
+    assert publics == {"annotations"}
+
+
+def test_le_prelude_concatene_est_autonome() -> None:
+    assert not re.search(r"^from \.", PRELUDE, re.MULTILINE)
+    assert PRELUDE.count("from __future__ import annotations") == 1
+    noms = {n for n in espace_du_prelude() if not n.startswith("__")}
     assert {n for n in noms if not n.startswith("_")} == {"annotations"}
+
+
+def test_chaque_predefinie_existe_dans_le_prelude() -> None:
+    espace = espace_du_prelude()
+    assert [n for n in PREDEFINIES if f"_{n}" not in espace] == []
+
+
+def test_chaque_litteral_d_arbre_a_son_constructeur() -> None:
+    espace = espace_du_prelude()
+    sortes = SorteCollection.__value__.__args__
+    assert [s for s in sortes if not callable(espace.get(f"_{s}"))] == []
 
 
 @pytest.mark.parametrize(
@@ -102,7 +138,11 @@ def test_le_prelude_fait_ce_que_dit_la_specification(source: str, sortie: str) -
             'pas d\'arc de "B" vers "A"',
             2,
         ),
-        ('tuu g = upea { "A" -> "B" : -1 };', "positif ou nul", 1),
+        (
+            'faaite ea(upea { "A" -> "B" : -1 }, "A", "B");',
+            "poids négatif : utilisez bellman_ford",
+            1,
+        ),
         ("faaite upea { [1] -> 2 };", "un nœud de upea doit être", 1),
         ("tataitahi x roto 5 { }", "on ne peut pas parcourir un numera", 1),
         ("tataitahi x roto [1] mai 1 { }", "'mai' ne s'emploie qu'avec un upea", 1),
@@ -121,8 +161,12 @@ def test_le_prelude_fait_ce_que_dit_la_specification(source: str, sortie: str) -
         ('faaite 1 roto "abc";', "roto : on ne cherche qu'un parau", 1),
         ("faaite tumu(1, 2);", "les enfants doivent être des tumu", 1),
         ("tuu t = tumu(1);\nt.amaa = 3;\nfaaite roa(t);", "forment une tapura", 3),
-        ("faaite amui(3, 1);", "amui : tapura attendue, numera reçu", 1),
-        ("faaite teitei([1]);", "teitei : tumu attendu, tapura reçu", 1),
+        (
+            "faaite amui(3, 1);",
+            "amui : tapura ou arbre ordonné attendu, numera reçu",
+            1,
+        ),
+        ("faaite teitei([1]);", "teitei : arbre attendu, tapura reçu", 1),
         ("ohipa f(n) { hoi f(n + 1); }\nfaaite f(1);", "récursion trop profonde", 1),
     ],
 )
@@ -152,7 +196,7 @@ def test_la_sortie_produite_avant_l_erreur_est_conservee(
 
 
 def test_dijkstra_departage_les_egalites_dans_l_ordre_d_ajout() -> None:
-    graphe = execution._graphe(
+    graphe = _graphe(
         [
             ("A", "B", 1, False),
             ("A", "C", 1, False),
@@ -160,12 +204,12 @@ def test_dijkstra_departage_les_egalites_dans_l_ordre_d_ajout() -> None:
             ("C", "D", 1, False),
         ]
     )
-    assert execution._ea(graphe, "A", "D") == ["A", "B", "D"]
+    assert _ea(graphe, "A", "D") == ["A", "B", "D"]
 
 
 def test_le_parcours_d_un_arbre_profond_ne_sature_pas_la_pile() -> None:
-    arbre = execution._tumu(0)
+    arbre = _tumu(0)
     for i in range(1, 5000):
-        arbre = execution._tumu(i, arbre)
-    assert execution._teitei(arbre) == 4999
-    assert execution._roa(arbre) == 5000
+        arbre = _tumu(i, arbre)
+    assert _teitei(arbre) == 4999
+    assert _roa(arbre) == 5000

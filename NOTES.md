@@ -51,8 +51,25 @@ uv run python -m upea repl
 | 11 module `ast` | fait | `generateur_ast.py` | `test_extension_11_*` |
 | 12 types | fait (graduel, types paramétrés `tapura[T]`, `tumu[T]`, `upea[T]`) | `typage.py`, `predefinies.py` | `test_extension_12_*` |
 | 13 source maps | fait | `sourcemap.py` | `test_extension_13_*` |
+| 14 arbres ordonnés | fait : ABR `imi`, AVL `aifaito`, rouge-noir `uteere`, arbre B `pupu`, tas `ahu` / `ahunui` | `execution/recherche.py`, `arbre_b.py`, `tas.py` | `test_extension_14_*` |
+| 15 algorithmes | fait : parcours, hauteur, diamètre, ancêtre commun… sur toutes les sortes d'arbres ; Dijkstra, Bellman-Ford, Floyd-Warshall, Kahn, Tarjan, biparti, Prim, Kruskal, Edmonds-Karp | `execution/vues.py`, `algorithmes_arbres.py`, `algorithmes_graphes.py` | `test_extension_15_*` |
+| 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
 
 Le serveur MCP n'est pas commencé.
+
+## Outils Python mobilisés (refactorisation)
+
+- **Décorateurs paramétrés** : `@prefixe` / `@infixe` (parser), `@regle("+")` (règles de typage des
+  opérateurs), `@predefinie`, `@_attend(...)` et `@_sur_graphe(1, 2)` (vérification des arguments à
+  l'exécution, avec `functools.wraps`), `@_sorte_upea("aifaito")` (décorateur de classe).
+- **Fonctions d'ordre supérieur et lambdas** : la DSL de patrons de `predefinies.py`
+  (`signature("tarjan", GRAPHE, retour=lambda t: tapura(tapura(t)))`), la table de traduction des
+  `TypeError` (`(motif, lambda m: …)`), le tas paramétré par `operator.lt` / `operator.gt`, les clés de
+  tri (`key=lambda arete: arete[2]`).
+- **functools** : `singledispatch` (une vue commune à toutes les sortes d'arbres, l'affichage `_texte`,
+  le dessin `_dessin` de chaque structure),
+  `singledispatchmethod` (l'analyseur), `reduce` (type commun, choix dans le tas), `cache`, `wraps`.
+- **itertools** : `chain.from_iterable`, `pairwise`, `count`, `product`.
 
 ## Choix à signaler
 
@@ -60,9 +77,18 @@ Le serveur MCP n'est pas commencé.
   sens de chaque mot est donné dans la spécification. Il reste à le faire relire par
   quelqu'un qui parle tahitien.
 - **Arbres et graphes natifs** : littéral `upea { a -> b : poids, c <-> d }`, champs
-  `t.hotu` / `t.amaa`, boucle `tataitahi … mai depart aano|hohonu`. Les algorithmes
-  (parcours, Dijkstra) sont dans le prélude (`execution.py`), un vrai module Python
-  vérifié par mypy et testé, recopié en tête de chaque fichier généré.
+  `t.hotu` / `t.amaa`, boucle `tataitahi … mai depart aano|hohonu`, littéraux d'arbres
+  ordonnés (`aifaito [5, 3, 8]`, `pupu 4 [1, 2]`). Les structures et les algorithmes sont
+  dans le prélude, le paquet `upea/execution/` : de vrais modules Python, vérifiés par
+  mypy et testés, concaténés en tête de chaque fichier généré (qui reste autonome, mais
+  fait maintenant environ 2 000 lignes).
+- Les mots-clés des arbres ordonnés (`imi`, `aifaito`, `uteere`, `pupu`, `ahu`, `ahunui`)
+  et des opérations (`tatara`, `iriti`, `iti`, `rahi`, `hohoa`) sont des propositions, à
+  corriger. `matrice`, `dot` et `mermaid` gardent leur nom connu, comme les algorithmes.
+- **`faaite` d'un arbre ou d'un graphe seul** écrit son dessin sur plusieurs lignes ; avec
+  d'autres valeurs, dans une liste ou par `parau`, il garde la forme compacte, relisible
+  par le parser. Les sorties attendues des exemples 04, 07, 08 et 09 ont changé en
+  conséquence (la logique des programmes, non).
 - **Comparaisons non associatives** : `a < b < c` est une erreur de syntaxe.
 - **Typage graduel intégré à l'analyse sémantique** : `--sans-types` le désactive, ce
   qui permet de tester les erreurs d'exécution que le vérificateur attraperait sinon.

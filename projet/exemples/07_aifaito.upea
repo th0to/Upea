@@ -1,0 +1,62 @@
+// Arbres ordonnés : ABR (imi), AVL (aifaito), rouge-noir (uteere), arbre B (pupu)
+// et tas (ahu, ahunui).
+tuu cles = [];
+tataitahi i roto 1..=15 {
+    amui(cles, i);
+}
+
+// Les mêmes clés, dans l'ordre : l'ABR dégénère, les deux autres s'équilibrent.
+tuu abr = imi [];
+tuu avl = aifaito [];
+tuu rn = uteere [];
+tataitahi k roto cles {
+    amui(abr, k);
+    amui(avl, k);
+    amui(rn, k);
+}
+faaite "hauteurs :", teitei(abr), teitei(avl), teitei(rn);
+faaite "équilibrés :", equilibre(abr), equilibre(avl);
+faaite roa(avl), iti(avl), rahi(avl), 7 roto avl, 16 roto avl;
+
+// Une double rotation (gauche-droite) dans un petit AVL.
+tuu petit = aifaito [];
+tataitahi k roto [3, 1, 2] {
+    amui(petit, k);
+}
+faaite hohoa(petit);
+
+// Retirer les clés paires du rouge-noir.
+tataitahi k roto 1..=7 {
+    tatara(rn, 2 * k);
+}
+faaite rn, tatara(rn, 2), roa(rn);
+
+// Un arbre B d'ordre 3 : éclatements à l'insertion, fusions au retrait.
+tuu b = pupu 3 [10, 20, 30, 40, 50, 60, 70];
+faaite hohoa(b);
+tatara(b, 10);
+faaite hohoa(b);
+faaite b, prefixe(b), rau(b);
+
+// Un tas comme file de priorité.
+tuu taches = ahu [5, 1, 4];
+amui(taches, 2);
+tuu ordre = [];
+tamau roa(taches) > 0 {
+    amui(ordre, iriti(taches));
+}
+faaite ordre, roa(taches);
+tuu fleurs = ahunui ["tiare", "miti", "ra"];
+faaite fleurs, iti(fleurs), rahi(fleurs);
+
+// Le parcours d'un arbre ordonné suit l'ordre trié ; hohonu donne l'ordre préfixe.
+tuu vus = [];
+tataitahi x roto imi [5, 2, 8, 1] {
+    amui(vus, x);
+}
+tuu prefixe_avl = [];
+tataitahi x roto aifaito [1, 2, 3] hohonu {
+    amui(prefixe_avl, x);
+}
+faaite vus, prefixe_avl;
+faaite aifaito [1, 2] == aifaito [2, 1], aifaito [1, 2] == aifaito [1, 3];

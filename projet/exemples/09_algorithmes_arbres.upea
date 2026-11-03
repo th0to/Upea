@@ -1,0 +1,22 @@
+// Algorithmes d'arbres : les mêmes fonctions sur un tumu, un AVL et un tas.
+tuu t = tumu("a",
+    tumu("b", tumu("d"), tumu("e", tumu("h"))),
+    tumu("c", tumu("f"), tumu("g")));
+faaite prefixe(t);
+faaite infixe(t);
+faaite postfixe(t);
+faaite largeur(t);
+faaite teitei(t), diametre(t), roa(t), rau(t);
+faaite ancetre(t, "h", "d"), ancetre(t, "h", "g"), ancetre(t, "f", "f");
+faaite profondeur(t, "h"), profondeur(t, "z"), equilibre(t);
+faaite hohoa(t);
+
+tuu avl = aifaito [50, 30, 70, 20, 40, 60, 80, 10];
+faaite prefixe(avl), infixe(avl);
+faaite postfixe(avl), largeur(avl);
+faaite teitei(avl), diametre(avl), ancetre(avl, 10, 40), equilibre(avl);
+faaite hohoa(avl);
+
+tuu tas = ahu [4, 1, 3];
+faaite hohoa(tas);
+faaite largeur(tas), teitei(tas);

@@ -1,29 +1,37 @@
 """Les fonctions prédéfinies d'Upea, vues du compilateur : arité et typage.
 
-Leur code d'exécution est dans `execution.py`, sous le même nom préfixé de `_`.
+Leur code d'exécution est dans le paquet `execution`, sous le même nom préfixé de
+`_`. La plupart des signatures s'écrivent en une ligne avec des **patrons** : un
+patron vérifie un argument, et peut lier le type `T` des éléments (les nœuds d'un
+graphe, les clés d'un arbre) que les arguments suivants et le résultat réutilisent.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .typage import (
     AORE,
+    ARBRES,
     INCONNU,
     NUMERA,
+    ORDONNES,
     PARAU,
     TIAHAPE,
     TUHAA,
     Base,
     Compose,
+    NomCompose,
     Type,
     commun_de,
     compatible,
     element,
+    element_de,
     est_nombre,
     tapura,
     tumu,
+    upea,
 )
 
 #: Signale une erreur de type sur l'argument d'indice donné.
@@ -57,7 +65,7 @@ PREDEFINIES: dict[str, Predefinie] = {}
 def predefinie(
     nom: str, minimum: int, maximum: int | None = -1
 ) -> Callable[[Typeur], Typeur]:
-    """Enregistre le typeur d'une fonction prédéfinie (maximum par défaut = minimum)."""
+    """Enregistre un typeur écrit à la main (maximum par défaut = minimum)."""
 
     def enregistrer(typer: Typeur) -> Typeur:
         PREDEFINIES[nom] = Predefinie(
@@ -68,58 +76,107 @@ def predefinie(
     return enregistrer
 
 
-def _graphe(nom: str, args: tuple[Type, ...], signaler: Signaler) -> Type | None:
-    """Le type des nœuds du graphe passé en premier argument."""
-    noeud = element(args[0], "upea")
-    if noeud is None:
-        signaler(0, f"{nom} : upea attendu, {args[0]} reçu")
-    return noeud
+# --- Les patrons ----------------------------------------------------------------------
 
 
-def _noeuds(
-    nom: str, noeud: Type | None, args: tuple[Type, ...], signaler: Signaler
+@dataclass(slots=True)
+class Liaison:
+    """Le type `T` lié par un patron, et réutilisé par les suivants."""
+
+    element: Type = field(default=INCONNU)
+
+
+#: Vérifie un argument ; rend un message d'erreur, ou `None` s'il convient.
+type Patron = Callable[[Type, Liaison], str | None]
+
+
+def lie(noms: tuple[NomCompose, ...], description: str) -> Patron:
+    """Un patron qui accepte les sortes `noms` et lie leur paramètre à `T`."""
+
+    def patron(recu: Type, liaison: Liaison) -> str | None:
+        contenu = element_de(recu, noms)
+        if contenu is None:
+            return f"{description} attendu, {recu} reçu"
+        liaison.element = contenu
+        return None
+
+    return patron
+
+
+def comme_t(description: str) -> Patron:
+    """Un patron qui exige une valeur compatible avec le `T` déjà lié."""
+    return lambda recu, liaison: (
+        None
+        if compatible(liaison.element, recu)
+        else f"{description} {liaison.element} attendu, {recu} reçu"
+    )
+
+
+def si(condition: Callable[[Type], bool], message: Callable[[Type], str]) -> Patron:
+    """Un patron qui accepte les types vérifiant `condition`."""
+    return lambda recu, _: None if condition(recu) or recu is INCONNU else message(recu)
+
+
+_LISTE_OU_ORDONNE: tuple[NomCompose, ...] = ("tapura", *ORDONNES)
+_RETIRABLES: tuple[NomCompose, ...] = ("tapura", "upea", *ORDONNES)
+_STRUCTURES: tuple[NomCompose, ...] = ("upea", *ARBRES)
+
+GRAPHE = lie(("upea",), "upea")
+ARBRE = lie(ARBRES, "arbre")
+ORDONNE = lie(ORDONNES, "arbre ordonné (imi, aifaito, uteere, pupu, ahu)")
+COLLECTION = lie(_LISTE_OU_ORDONNE, "tapura ou arbre ordonné")
+RETIRABLE = lie(_RETIRABLES, "tapura, upea ou arbre ordonné")
+STRUCTURE = lie(_STRUCTURES, "arbre ou upea")
+NOEUD = comme_t("nœud")
+VALEUR = comme_t("élément")
+NOMBRE = si(est_nombre, lambda t: f"le poids doit être un nombre, pas un {t}")
+
+
+def TOUT(recu: Type, liaison: Liaison) -> None:
+    """Un patron qui accepte tout."""
+
+
+def signature(
+    nom: str, *patrons: Patron, retour: Callable[[Type], Type], optionnels: int = 0
 ) -> None:
-    """Vérifie que les arguments 1, 2… sont des nœuds du bon type."""
-    if noeud is None:
-        return
-    for i in range(1, len(args)):
-        if not compatible(noeud, args[i]):
-            signaler(i, f"{nom} : nœud {noeud} attendu, {args[i]} reçu")
+    """Déclare une prédéfinie par ses patrons ; `retour` reçoit le `T` lié."""
+
+    def typer(arguments: tuple[Type, ...], signaler: Signaler) -> Type:
+        liaison = Liaison()
+        for i, (patron, recu) in enumerate(zip(patrons, arguments, strict=False)):
+            if (message := patron(recu, liaison)) is not None:
+                signaler(i, f"{nom} : {message}")
+        return retour(liaison.element)
+
+    PREDEFINIES[nom] = Predefinie(nom, len(patrons) - optionnels, len(patrons), typer)
+
+
+def fixe(resultat: Type) -> Callable[[Type], Type]:
+    """Un type de retour qui ne dépend pas de `T`."""
+    return lambda _: resultat
+
+
+def identite(t: Type) -> Type:
+    return t
+
+
+# --- Les fonctions écrites à la main ------------------------------------------------
 
 
 @predefinie("roa", 1)
 def _roa(args: tuple[Type, ...], signaler: Signaler) -> Type:
     t = args[0]
     if not (t in (PARAU, INCONNU) or isinstance(t, Compose)):
-        signaler(0, f"roa : tapura, parau, tumu ou upea attendu, {t} reçu")
+        signaler(0, f"roa : tapura, parau, upea ou arbre attendu, {t} reçu")
     return NUMERA
 
 
-@predefinie("amui", 2)
-def _amui(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    contenu = element(args[0], "tapura")
-    if contenu is None:
-        signaler(0, f"amui : tapura attendue, {args[0]} reçu")
-    elif not compatible(contenu, args[1]):
-        signaler(1, f"amui : élément {contenu} attendu, {args[1]} reçu")
-    return AORE
-
-
 def _conversion(nom: str, resultat: Base, acceptes: tuple[Base, ...]) -> None:
-    @predefinie(nom, 1)
-    def typer(args: tuple[Type, ...], signaler: Signaler) -> Type:
-        if args[0] not in (*acceptes, INCONNU):
-            signaler(0, f"{nom} : impossible de convertir un {args[0]}")
-        return resultat
-
-
-_conversion("numera", NUMERA, (NUMERA, TUHAA, PARAU, TIAHAPE))
-_conversion("tuhaa", TUHAA, (NUMERA, TUHAA, PARAU))
-
-
-@predefinie("parau", 1)
-def _parau(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    return PARAU
+    signature(
+        nom,
+        si(lambda t: t in acceptes, lambda t: f"impossible de convertir un {t}"),
+        retour=fixe(resultat),
+    )
 
 
 @predefinie("tumu", 1, None)
@@ -129,63 +186,54 @@ def _tumu(args: tuple[Type, ...], signaler: Signaler) -> Type:
         contenu = element(enfant, "tumu")
         if contenu is None:
             signaler(i, f"tumu : les enfants doivent être des tumu, pas un {enfant}")
-            valeurs.append(INCONNU)
-        else:
-            valeurs.append(contenu)
+        valeurs.append(INCONNU if contenu is None else contenu)
     return tumu(commun_de(valeurs))
 
 
-@predefinie("teitei", 1)
-def _teitei(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    if element(args[0], "tumu") is None:
-        signaler(0, f"teitei : tumu attendu, {args[0]} reçu")
-    return NUMERA
+_conversion("numera", NUMERA, (NUMERA, TUHAA, PARAU, TIAHAPE))
+_conversion("tuhaa", TUHAA, (NUMERA, TUHAA, PARAU))
+signature("parau", TOUT, retour=fixe(PARAU))
 
+# --- Collections : listes et arbres ordonnés ------------------------------------------
 
-@predefinie("rau", 1)
-def _rau(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    contenu = element(args[0], "tumu")
-    if contenu is None:
-        signaler(0, f"rau : tumu attendu, {args[0]} reçu")
-        return tapura()
-    return tapura(contenu)
+signature("amui", COLLECTION, VALEUR, retour=fixe(AORE))
+signature("tatara", RETIRABLE, VALEUR, retour=fixe(TIAHAPE))
+signature("iriti", ORDONNE, retour=identite)
+signature("iti", COLLECTION, retour=identite)
+signature("rahi", COLLECTION, retour=identite)
 
+# --- Algorithmes d'arbres : toutes les sortes d'arbres --------------------------------
 
-@predefinie("taati", 3, 4)
-def _taati(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    noeud = _graphe("taati", args, signaler)
-    _noeuds("taati", noeud, args[:3], signaler)
-    if len(args) == 4 and not (est_nombre(args[3]) or args[3] is INCONNU):
-        signaler(3, f"taati : le poids doit être un nombre, pas un {args[3]}")
-    return AORE
+for _nom in ("prefixe", "infixe", "postfixe", "largeur", "rau"):
+    signature(_nom, ARBRE, retour=tapura)
+for _nom in ("teitei", "diametre"):
+    signature(_nom, ARBRE, retour=fixe(NUMERA))
+signature("equilibre", ARBRE, retour=fixe(TIAHAPE))
+signature("profondeur", ARBRE, VALEUR, retour=fixe(INCONNU))  # numera, ou aore
+signature("ancetre", ARBRE, VALEUR, VALEUR, retour=fixe(INCONNU))
 
+# --- Affichage : arbres et graphes ----------------------------------------------------
 
-@predefinie("pihai", 2)
-def _pihai(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    noeud = _graphe("pihai", args, signaler)
-    _noeuds("pihai", noeud, args, signaler)
-    return tapura(INCONNU if noeud is None else noeud)
+for _nom in ("hohoa", "dot", "mermaid"):
+    signature(_nom, STRUCTURE, retour=fixe(PARAU))
+signature("matrice", GRAPHE, retour=fixe(PARAU))
 
+# --- Graphes --------------------------------------------------------------------------
 
-@predefinie("motu", 1)
-def _motu(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    noeud = _graphe("motu", args, signaler)
-    return tapura(INCONNU if noeud is None else noeud)
-
-
-@predefinie("teiaha", 3)
-def _teiaha(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    _noeuds("teiaha", _graphe("teiaha", args, signaler), args, signaler)
-    return INCONNU  # numera ou tuhaa, selon les poids
-
-
-@predefinie("tae", 3)
-def _tae(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    _noeuds("tae", _graphe("tae", args, signaler), args, signaler)
-    return TIAHAPE
-
-
-@predefinie("ea", 3)
-def _ea(args: tuple[Type, ...], signaler: Signaler) -> Type:
-    _noeuds("ea", _graphe("ea", args, signaler), args, signaler)
-    return INCONNU  # une tapura, ou aore
+signature("taati", GRAPHE, NOEUD, NOEUD, NOMBRE, retour=fixe(AORE), optionnels=1)
+signature("pihai", GRAPHE, NOEUD, retour=tapura)
+signature("motu", GRAPHE, retour=tapura)
+signature("teiaha", GRAPHE, NOEUD, NOEUD, retour=fixe(INCONNU))  # selon les poids
+signature("tae", GRAPHE, NOEUD, NOEUD, retour=fixe(TIAHAPE))
+for _nom in ("bfs", "dfs"):
+    signature(_nom, GRAPHE, NOEUD, retour=tapura)
+# Un chemin (une tapura), ou aore ; une distance (un nombre), ou aore.
+for _nom in ("ea", "dijkstra", "bellman_ford", "distance", "edmonds_karp"):
+    signature(_nom, GRAPHE, NOEUD, NOEUD, retour=fixe(INCONNU))
+for _nom in ("floyd_warshall", "prim", "kruskal"):
+    signature(_nom, GRAPHE, retour=upea)
+signature("tri_topologique", GRAPHE, retour=fixe(INCONNU))  # une tapura, ou aore
+for _nom in ("cycle", "biparti"):
+    signature(_nom, GRAPHE, retour=fixe(TIAHAPE))
+for _nom in ("composantes", "tarjan"):
+    signature(_nom, GRAPHE, retour=lambda t: tapura(tapura(t)))

@@ -23,7 +23,7 @@ tataitahi ile roto iles mai "Tahiti" aano {
 }
 faaite "largeur :", visite;
 
-ohipa distance(g, chemin) -> numera {
+ohipa longueur_trajet(g, chemin) -> numera {
     tuu total = 0;
     tataitahi i roto 1..roa(chemin) {
         total = total + teiaha(g, chemin[i - 1], chemin[i]);
@@ -32,7 +32,7 @@ ohipa distance(g, chemin) -> numera {
 }
 
 tuu trajet = ea(iles, "Tahiti", "Bora Bora");
-faaite trajet, distance(iles, trajet);
+faaite trajet, longueur_trajet(iles, trajet);
 faaite tae(iles, "Moorea", "Bora Bora"), tae(iles, "Bora Bora", "Tahiti");
 faaite ea(iles, "Rangiroa", "Tahiti");
 

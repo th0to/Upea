@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from functools import reduce
 from typing import Literal
 
 from .erreurs import ErreurType
@@ -22,12 +23,20 @@ class Base(Enum):
         return self.value
 
 
-type NomCompose = Literal["tapura", "tumu", "upea"]
+type NomCompose = Literal[
+    "tapura", "upea", "tumu", "imi", "aifaito", "uteere", "pupu", "ahu"
+]
+
+#: Les arbres ordonnés : arbres de recherche, arbre B et tas.
+ORDONNES: tuple[NomCompose, ...] = ("imi", "aifaito", "uteere", "pupu", "ahu")
+#: Toutes les sortes d'arbres, sur lesquelles marchent les algorithmes d'arbres.
+ARBRES: tuple[NomCompose, ...] = ("tumu", *ORDONNES)
+COMPOSES: tuple[NomCompose, ...] = ("tapura", "upea", *ARBRES)
 
 
 @dataclass(frozen=True, slots=True)
 class Compose:
-    """Un type paramétré : `tapura[numera]`, `tumu[parau]`, `upea[?]`."""
+    """Un type paramétré : `tapura[numera]`, `tumu[parau]`, `aifaito[?]`."""
 
     nom: NomCompose
     element: Type
@@ -89,30 +98,33 @@ def commun(a: Type, b: Type) -> Type:
 
 
 def commun_de(types: list[Type]) -> Type:
-    if not types:
-        return INCONNU
-    resultat = types[0]
-    for t in types[1:]:
-        resultat = commun(resultat, t)
-    return resultat
+    return reduce(commun, types) if types else INCONNU
 
 
 def est_nombre(t: Type) -> bool:
     return t is NUMERA or t is TUHAA
 
 
-def element(t: Type, nom: NomCompose) -> Type | None:
-    """Le paramètre de `t` s'il est de la sorte `nom`, `INCONNU` si `t` est inconnu,
-    et `None` si `t` est connu et d'une autre sorte."""
+def est_cle(t: Type) -> bool:
+    """Une clé d'arbre ordonné, ou un nœud de graphe : un nombre ou un texte."""
+    return est_nombre(t) or t in (PARAU, INCONNU)
+
+
+def element_de(t: Type, noms: tuple[NomCompose, ...]) -> Type | None:
+    """Le paramètre de `t` s'il est de l'une des sortes `noms`, `INCONNU` si `t` est
+    inconnu, et `None` si `t` est connu et d'une autre sorte."""
     if t is INCONNU:
         return INCONNU
-    if isinstance(t, Compose) and t.nom == nom:
+    if isinstance(t, Compose) and t.nom in noms:
         return t.element
     return None
 
 
+def element(t: Type, nom: NomCompose) -> Type | None:
+    return element_de(t, (nom,))
+
+
 SIMPLES: dict[str, Base] = {b.value: b for b in Base if b is not INCONNU}
-COMPOSES: tuple[NomCompose, ...] = ("tapura", "tumu", "upea")
 
 
 def depuis_note(note: TypeNote) -> Type:
@@ -123,36 +135,37 @@ def depuis_note(note: TypeNote) -> Type:
                 f"le type {note.nom} n'a pas de paramètre", note.parametre.pos
             )
         return SIMPLES[note.nom]
-    for nom in COMPOSES:
-        if note.nom == nom:
-            parametre = (
-                INCONNU if note.parametre is None else depuis_note(note.parametre)
-            )
-            return Compose(nom, parametre)
-    connus = ", ".join([*SIMPLES, *COMPOSES])
-    raise ErreurType(f"type inconnu : '{note.nom}' (types : {connus})", note.pos)
+    nom = next((n for n in COMPOSES if n == note.nom), None)
+    if nom is None:
+        connus = ", ".join([*SIMPLES, *COMPOSES])
+        raise ErreurType(f"type inconnu : '{note.nom}' (types : {connus})", note.pos)
+    parametre = INCONNU if note.parametre is None else depuis_note(note.parametre)
+    return Compose(nom, parametre)
+
+
+PYTHON_SIMPLES: dict[Base, str | None] = {
+    NUMERA: "int",
+    TUHAA: "float",
+    PARAU: "str",
+    TIAHAPE: "bool",
+    AORE: "None",
+    INCONNU: None,
+}
+#: La classe Python qui représente chaque sorte composée.
+PYTHON_COMPOSES: dict[NomCompose, str] = {
+    "tapura": "list",
+    "upea": "_Upea",
+    "tumu": "_Tumu",
+    "imi": "_Imi",
+    "aifaito": "_Aifaito",
+    "uteere": "_Uteere",
+    "pupu": "_Pupu",
+    "ahu": "_Ahu",
+}
 
 
 def vers_python(t: Type) -> str | None:
     """L'annotation Python correspondante, ou `None` pour le type inconnu."""
-    match t:
-        case Base.NUMERA:
-            return "int"
-        case Base.TUHAA:
-            return "float"
-        case Base.PARAU:
-            return "str"
-        case Base.TIAHAPE:
-            return "bool"
-        case Base.AORE:
-            return "None"
-        case Base.INCONNU:
-            return None
-        case Compose("tapura", _):
-            return "list"
-        case Compose("tumu", _):
-            return "_Tumu"
-        case Compose("upea", _):
-            return "_Upea"
-        case _:
-            return None
+    if isinstance(t, Compose):
+        return PYTHON_COMPOSES[t.nom]
+    return PYTHON_SIMPLES[t]

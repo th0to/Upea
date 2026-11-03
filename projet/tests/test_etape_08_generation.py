@@ -189,12 +189,19 @@ def test_les_noms_reserves_en_python_sont_renommes() -> None:
         ),
         ('faaite [1, "a\\"b", [tia, aore], 1.5];', '[1, "a\\"b", [tia, aore], 1.5]'),
         ('faaite ["l1\\nl2\\t"];', '["l1\\nl2\\t"]'),
-        ('faaite tumu("r", tumu(1), tumu([2]));', 'tumu("r", tumu(1), tumu([2]))'),
+        (
+            'faaite parau(tumu("r", tumu(1), tumu([2])));',
+            'tumu("r", tumu(1), tumu([2]))',
+        ),
         (
             'faaite upea { "A" -> "B", "B" -> "A" : 2.5 }, upea {};',
             'upea { "A" -> "B", "B" -> "A" : 2.5 } upea {}',
         ),
-        ("faaite upea { 1 <-> 2 : 4 };", "upea { 1 -> 2 : 4, 2 -> 1 : 4 }"),
+        ("faaite parau(upea { 1 <-> 2 : 4 });", "upea { 1 <-> 2 : 4 }"),
+        (
+            "faaite 0, upea { 1 -> 2, 2 -> 1 : 3, 4 };",
+            "0 upea { 1 -> 2, 2 -> 1 : 3, 4 }",
+        ),
         ("faaite parau(tia) + parau([1]);", "tia[1]"),
         ('faaite "a\\nb";', "a\nb"),
         ("faaite 1 / 3, 6 / 3;", "0.3333333333333333 2.0"),

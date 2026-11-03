@@ -19,6 +19,7 @@ from .noeuds import (
     Bloc,
     Booleen,
     Champ,
+    Collection,
     Decimal,
     Declaration,
     Entier,
@@ -178,9 +179,15 @@ class _Ecrivain:
                 return nom
             case Liste(elements):
                 return f"[{', '.join(self.expr(x) for x in elements)}]"
+            case Collection(sorte, elements, ordre):
+                ecrit = sorte if ordre is None else f"{sorte} {ordre}"
+                return f"{ecrit} [{', '.join(self.expr(e) for e in elements)}]"
             case Graphe(aretes):
                 morceaux = []
                 for arete in aretes:
+                    if arete.arrivee is None:
+                        morceaux.append(self.expr(arete.depart))
+                        continue
                     fleche = "<->" if arete.double else "->"
                     texte = (
                         f"{self.expr(arete.depart)} {fleche} {self.expr(arete.arrivee)}"

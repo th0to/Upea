@@ -254,7 +254,8 @@ def test_le_repl_garde_les_fonctions_et_les_globales(session: Session) -> None:
 
 
 def test_le_repl_affiche_un_litteral_de_graphe(session: Session) -> None:
-    assert session.send("upea { 1 -> 2 }").sortie == "upea { 1 -> 2 }\n"
+    sortie = session.send("upea { 1 -> 2 }").sortie
+    assert sortie == "upea : 2 nœuds, 1 arc\n1 → 2\n2 ·\n"
 
 
 @pytest.mark.parametrize(

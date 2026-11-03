@@ -1,0 +1,21 @@
+["A", "C", "B", "D"] 4
+["A", "B", "C", "D"] ["A", "B", "D", "C"]
+["A", "C", "B", "D"] hape
+upea : 4 nœuds, 6 arcs
+A → B, C (2), D (4)
+B → D (3)
+C → B (-1), D (2)
+D ·
+[[1, 2, 3], [4, 5], [6], [7]]
+[[1, 2, 3, 4, 5], [6, 7]]
+tia aore
+tia hape
+["Tahiti", "Huahine", "Raiatea", "Bora Bora"] 280
+upea : 5 nœuds, 8 arcs
+Tahiti    → Moorea (17)
+Moorea    → Tahiti (17), Huahine (160)
+Huahine   → Raiatea (40), Moorea (160)
+Raiatea   → Huahine (40), Bora Bora (70)
+Bora Bora → Raiatea (70)
+tia 5
+15

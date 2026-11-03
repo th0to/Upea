@@ -1,0 +1,40 @@
+// Les dessins : faaite d'une structure seule, hohoa, matrice, dot et mermaid.
+
+// Seul, un arbre binaire se dessine de haut en bas ; dans une phrase, il tient
+// sur une ligne.
+tuu a = aifaito [4, 2, 6, 1, 3, 5, 7];
+faaite a;
+faaite "en ligne :", a;
+
+// Un enfant seul montre son côté ; le rouge-noir montre ses couleurs.
+tuu rn = uteere [10, 20, 30];
+amui(rn, 5);
+faaite rn;
+
+// Un tas se dessine comme l'arbre qu'il représente.
+faaite ahunui [3, 9, 4, 1];
+
+// Plus de 80 colonnes : le dessin passe en retrait.
+tuu plats = imi ["poisson cru", "firi firi", "taioro de coco",
+    "chevrettes au curry et au riz", "ipo au lait de coco",
+    "poulet fafa au lait de coco", "uru au feu de bois"];
+faaite plats;
+
+// Un tumu et un arbre B se dessinent toujours en retrait.
+faaite tumu("Polynésie",
+    tumu("Société", tumu("Tahiti"), tumu("Moorea")),
+    tumu("Tuamotu", tumu("Rangiroa")));
+faaite pupu 3 [10, 20, 30, 40, 50];
+
+// Un graphe : sa liste d'adjacence et sa matrice. Le nœud isolé reste visible,
+// même dans la forme compacte.
+tuu iles = upea { "Tahiti" <-> "Moorea" : 17, "Moorea" -> "Huahine" : 160, "Rangiroa" };
+faaite iles;
+faaite matrice(iles);
+faaite "en ligne :", iles;
+tatara(iles, "Moorea");
+faaite parau(iles), roa(iles);
+
+// Pour en faire une image : le texte Graphviz (dot -Tsvg) ou Mermaid.
+faaite dot(upea { 1 <-> 2 : 5, 2 -> 3 });
+faaite mermaid(imi [2, 1]);

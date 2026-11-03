@@ -64,10 +64,11 @@ class Liste:
 
 @dataclass(frozen=True, slots=True)
 class Arete:
-    """Une arête d'un littéral de graphe : `depart -> arrivee : poids`."""
+    """Une arête d'un littéral de graphe : `depart -> arrivee : poids`, ou un nœud
+    seul (`arrivee` vaut alors `None`)."""
 
     depart: Expr
-    arrivee: Expr
+    arrivee: Expr | None
     double: bool  # vrai pour `<->`
     poids: Expr | None = None
     pos: Position = _pos()
@@ -76,6 +77,19 @@ class Arete:
 @dataclass(frozen=True, slots=True)
 class Graphe:
     aretes: tuple[Arete, ...]
+    pos: Position = _pos()
+
+
+type SorteCollection = Literal["imi", "aifaito", "uteere", "pupu", "ahu", "ahunui"]
+
+
+@dataclass(frozen=True, slots=True)
+class Collection:
+    """Un littéral d'arbre ordonné : `aifaito [5, 3, 8]`, `pupu 4 [1, 2]`."""
+
+    sorte: SorteCollection
+    elements: tuple[Expr, ...]
+    ordre: int | None = None  # l'ordre d'un arbre B, quand il est écrit
     pos: Position = _pos()
 
 
@@ -127,6 +141,7 @@ type Expr = (
     | Variable
     | Liste
     | Graphe
+    | Collection
     | Unaire
     | Binaire
     | Appel

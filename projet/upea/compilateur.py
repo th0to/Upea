@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 import traceback
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from types import CodeType
 
@@ -23,6 +23,7 @@ from .prelude import PRELUDE
 from .semantique import Analyse, analyser
 from .sourcemap import SourceMap
 from .tokens import Token
+from .typage import PYTHON_COMPOSES
 
 #: Le nom de fichier du code généré, pour reconnaître ses lignes dans un traceback.
 NOM_FICHIER = "<upea>"
@@ -129,53 +130,86 @@ def ligne_fautive(exc: BaseException, sourcemap: SourceMap) -> int | None:
 
 # --- Traduction des exceptions Python -------------------------------------------------
 
+#: Le nom Upea des sortes, d'après le nom de leur classe Python.
 SORTES = {
     "int": "numera",
     "float": "tuhaa",
     "str": "parau",
     "bool": "tiahape",
     "NoneType": "aore",
-    "list": "tapura",
-    "_Tumu": "tumu",
-    "_Upea": "upea",
-}
+} | {classe: sorte for sorte, classe in PYTHON_COMPOSES.items()}
 
 
 def _sorte(nom_python: str) -> str:
     return SORTES.get(nom_python, nom_python)
 
 
+type Traduction = Callable[[re.Match[str]], str]
+
+#: Les messages des `TypeError` de Python, et leur traduction en termes d'Upea.
+TRADUCTIONS: list[tuple[re.Pattern[str], Traduction]] = [
+    (
+        re.compile(r"unsupported operand type\(s\) for (\S+): '(\w+)' and '(\w+)'"),
+        lambda m: (
+            f"opération '{m[1]}' impossible entre {_sorte(m[2])} et {_sorte(m[3])}"
+        ),
+    ),
+    (
+        re.compile(r'can only concatenate (\w+) \(not "(\w+)"\) to'),
+        lambda m: f"opération '+' impossible entre {_sorte(m[1])} et {_sorte(m[2])}",
+    ),
+    (
+        re.compile(r"'(\S+)' not supported between instances of '(\w+)' and '(\w+)'"),
+        lambda m: (
+            f"comparaison '{m[1]}' impossible entre {_sorte(m[2])} et {_sorte(m[3])}"
+        ),
+    ),
+    (
+        re.compile(r"bad operand type for unary (\S+): '(\w+)'"),
+        lambda m: (
+            f"opérande de '{'eiaha' if m[1] == 'not' else m[1]}' invalide : "
+            f"{_sorte(m[2])}"
+        ),
+    ),
+    (
+        re.compile(r"'(\w+)' object does not support item assignment"),
+        lambda m: f"un {_sorte(m[1])} ne se modifie pas élément par élément",
+    ),
+    (
+        re.compile(r"indices must be integers(?: or slices)?, not '?(\w+)'?"),
+        lambda m: f"un indice doit être un numera, pas un {_sorte(m[1])}",
+    ),
+    (
+        re.compile(r"'(\w+)' object is not subscriptable"),
+        lambda m: f"on ne peut pas indexer un {_sorte(m[1])}",
+    ),
+    (
+        re.compile(r"argument of type '(\w+)' is not iterable"),
+        lambda m: f"roto : on ne peut pas chercher dans un {_sorte(m[1])}",
+    ),
+    (
+        re.compile(r"'in <string>' requires string as left operand, not (\w+)"),
+        lambda m: (
+            f"roto : on ne cherche qu'un parau dans un parau, pas un {_sorte(m[1])}"
+        ),
+    ),
+    (
+        re.compile(r"cannot be interpreted as an integer"),
+        lambda _: "les bornes d'un intervalle doivent être des numera",
+    ),
+]
+
+
 def _type_error(message: str) -> str:
-    if m := re.search(
-        r"unsupported operand type\(s\) for (\S+): '(\w+)' and '(\w+)'", message
-    ):
-        return f"opération '{m[1]}' impossible entre {_sorte(m[2])} et {_sorte(m[3])}"
-    if m := re.search(r'can only concatenate (\w+) \(not "(\w+)"\) to', message):
-        return f"opération '+' impossible entre {_sorte(m[1])} et {_sorte(m[2])}"
-    if m := re.search(
-        r"'(\S+)' not supported between instances of '(\w+)' and '(\w+)'", message
-    ):
-        return f"comparaison '{m[1]}' impossible entre {_sorte(m[2])} et {_sorte(m[3])}"
-    if m := re.search(r"bad operand type for unary (\S+): '(\w+)'", message):
-        operateur = "eiaha" if m[1] == "not" else m[1]
-        return f"opérande de '{operateur}' invalide : {_sorte(m[2])}"
-    if m := re.search(r"'(\w+)' object does not support item assignment", message):
-        return f"un {_sorte(m[1])} ne se modifie pas élément par élément"
-    if m := re.search(
-        r"indices must be integers(?: or slices)?, not '?(\w+)'?", message
-    ):
-        return f"un indice doit être un numera, pas un {_sorte(m[1])}"
-    if m := re.search(r"'(\w+)' object is not subscriptable", message):
-        return f"on ne peut pas indexer un {_sorte(m[1])}"
-    if m := re.search(r"argument of type '(\w+)' is not iterable", message):
-        return f"roto : on ne peut pas chercher dans un {_sorte(m[1])}"
-    if m := re.search(
-        r"'in <string>' requires string as left operand, not (\w+)", message
-    ):
-        return f"roto : on ne cherche qu'un parau dans un parau, pas un {_sorte(m[1])}"
-    if "cannot be interpreted as an integer" in message:
-        return "les bornes d'un intervalle doivent être des numera"
-    return f"opération impossible sur ces valeurs ({message})"
+    """La première traduction dont le motif reconnaît le message."""
+    return next(
+        (
+            traduction(trouve)
+            for motif, traduction in TRADUCTIONS
+            if (trouve := motif.search(message))
+        ),
+        f"opération impossible sur ces valeurs ({message})",
+    )
 
 
 def traduire(exc: BaseException) -> str:

@@ -15,17 +15,17 @@ faaite arbre;
 faaite "noeuds :", roa(arbre), "hauteur :", teitei(arbre), "somme :", somme(arbre);
 faaite "feuilles :", rau(arbre), 6 roto arbre, 9 roto arbre;
 
-tuu prefixe = [];
+tuu en_profondeur = [];
 tataitahi n roto arbre hohonu {
-    amui(prefixe, n.hotu);
+    amui(en_profondeur, n.hotu);
 }
-faaite "profondeur :", prefixe;
+faaite "profondeur :", en_profondeur;
 
-tuu largeur = [];
+tuu en_largeur = [];
 tataitahi n roto arbre aano {
-    amui(largeur, n.hotu);
+    amui(en_largeur, n.hotu);
 }
-faaite "largeur :", largeur;
+faaite "largeur :", en_largeur;
 
 arbre.hotu = 10;
 amui(arbre.amaa[0].amaa, tumu(8));

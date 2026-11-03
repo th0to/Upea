@@ -10,7 +10,7 @@ ohipa indice(liste, x) -> numera {
     hoi -1;
 }
 
-ohipa tri_topologique(g) {
+ohipa ordre_des_taches(g) {
     tuu noeuds = motu(g);
     tuu degre = [];
     tataitahi n roto noeuds {
@@ -52,10 +52,10 @@ tuu taches = upea {
     "cuire" -> "servir",
     "râper le coco" -> "servir",
 };
-faaite "ordre :", tri_topologique(taches);
+faaite "ordre :", ordre_des_taches(taches);
 
 tuu boucle = upea { "a" -> "b", "b" -> "c", "c" -> "a" };
-ahani roa(tri_topologique(boucle)) < roa(boucle) {
+ahani roa(ordre_des_taches(boucle)) < roa(boucle) {
     faaite "cycle détecté";
 }
 

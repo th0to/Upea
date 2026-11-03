@@ -19,6 +19,7 @@ from .noeuds import (
     Booleen,
     Branche,
     Champ,
+    Collection,
     Decimal,
     Declaration,
     Entier,
@@ -37,6 +38,7 @@ from .noeuds import (
     Rien,
     Rupture,
     Si,
+    SorteCollection,
     TantQue,
     Texte,
     TypeNote,
@@ -75,6 +77,19 @@ PRECEDENCE_BINAIRE: dict[str, Precedence] = {}
 COMPARATEURS = frozenset(
     {T.EGAL_EGAL, T.DIFFERENT, T.INF, T.INF_EGAL, T.SUP, T.SUP_EGAL, T.ROTO}
 )
+
+#: Les littéraux d'arbres ordonnés : `aifaito [5, 3, 8]`.
+SORTES_COLLECTION: dict[T, SorteCollection] = {
+    T.IMI: "imi",
+    T.AIFAITO: "aifaito",
+    T.UTEERE: "uteere",
+    T.PUPU: "pupu",
+    T.AHU: "ahu",
+    T.AHUNUI: "ahunui",
+}
+
+#: Les tokens qui peuvent nommer un type dans une annotation.
+NOMS_DE_TYPE = frozenset({T.IDENT, T.UPEA, T.AORE, *SORTES_COLLECTION} - {T.AHUNUI})
 
 #: Les tokens qui commencent une instruction : on s'y resynchronise.
 DEBUTS_INSTRUCTION = frozenset(
@@ -309,7 +324,7 @@ class Parser:
 
     def type(self) -> TypeNote:
         token = self.regarde()
-        if token.kind not in (T.IDENT, T.UPEA, T.AORE):
+        if token.kind not in NOMS_DE_TYPE:
             raise ErreurSyntaxe(
                 f"type attendu, trouvé {decrire(token)}", token.position
             )
@@ -502,9 +517,15 @@ def _graphe(p: Parser, t: Token) -> Expr:
     while not p.verifie(T.ACC_D):
         depart = p.expression()
         fleche = p.regarde()
+        if fleche.kind in (T.VIRGULE, T.ACC_D):  # un nœud seul
+            aretes.append(Arete(depart, None, False, None, depart.pos))
+            if not p.accepte(T.VIRGULE):
+                break
+            continue
         if fleche.kind not in (T.FLECHE, T.DOUBLE_FLECHE):
             raise ErreurSyntaxe(
-                f"'->' ou '<->' attendu dans une arête, trouvé {decrire(fleche)}",
+                f"'->', '<->', ',' ou '}}' attendu dans un upea, "
+                f"trouvé {decrire(fleche)}",
                 fleche.position,
             )
         p.avance()
@@ -519,6 +540,17 @@ def _graphe(p: Parser, t: Token) -> Expr:
             break
     p.attend(T.ACC_D, "pour fermer le upea")
     return Graphe(tuple(aretes), t.position)
+
+
+@prefixe(*SORTES_COLLECTION)
+def _collection(p: Parser, t: Token) -> Expr:
+    """`aifaito [5, 3, 8]`, et pour l'arbre B un ordre facultatif : `pupu 4 [1, 2]`."""
+    ordre = None
+    if t.kind is T.PUPU and (nombre := p.accepte(T.ENTIER)) is not None:
+        ordre = int(nombre.lexeme)
+    p.attend(T.CRO_G, f"après '{t.lexeme}'")
+    cles = p.arguments(T.CRO_D, f"pour fermer le {t.lexeme}")
+    return Collection(SORTES_COLLECTION[t.kind], cles, ordre, t.position)
 
 
 def _binaire(precedence: Precedence, *kinds: T) -> None:

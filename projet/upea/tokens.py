@@ -44,6 +44,12 @@ class TokenKind(Enum):
     MA = "ma"
     ANEI = "anei"
     EIAHA = "eiaha"
+    IMI = "imi"
+    AIFAITO = "aifaito"
+    UTEERE = "uteere"
+    PUPU = "pupu"
+    AHU = "ahu"
+    AHUNUI = "ahunui"
 
     # Symboles
     PAR_G = "("

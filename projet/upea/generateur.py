@@ -14,6 +14,7 @@ from .noeuds import (
     Bloc,
     Booleen,
     Champ,
+    Collection,
     Decimal,
     Declaration,
     Entier,
@@ -145,12 +146,21 @@ class _Traducteur:
             case Graphe(aretes):
                 morceaux = []
                 for arete in aretes:
+                    if arete.arrivee is None:
+                        seul = self.expr(arete.depart)
+                        morceaux.append(f"({seul}, None, None, False)")
+                        continue
                     poids = "1" if arete.poids is None else self.expr(arete.poids)
                     morceaux.append(
                         f"({self.expr(arete.depart)}, {self.expr(arete.arrivee)}, "
                         f"{poids}, {arete.double})"
                     )
                 return f"_graphe([{', '.join(morceaux)}])"
+            case Collection(sorte, elements, ordre):
+                arguments = [f"[{', '.join(self.expr(e) for e in elements)}]"]
+                if ordre is not None:
+                    arguments.append(str(ordre))
+                return f"_{sorte}({', '.join(arguments)})"
             case Unaire(op, operande):
                 if op == "-":
                     return f"(-{self.expr(operande)})"

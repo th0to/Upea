@@ -192,7 +192,7 @@ def test_un_champ_porte_la_position_de_son_nom() -> None:
         ("(1)(2)", 4, "seule une fonction nommée"),
         ("[1, 2", 6, "']' attendu pour fermer la liste"),
         ("t.", 3, "<identifiant> attendu après le point"),
-        ("upea { 1 2 }", 10, "'->' ou '<->' attendu"),
+        ("upea { 1 2 }", 10, "'->', '<->', ',' ou '}' attendu"),
         ("upea 1", 6, "'{' attendu après 'upea'"),
         ("a < b < c", 7, "les comparaisons ne s'enchaînent pas"),
         ("a == b != c", 8, "les comparaisons ne s'enchaînent pas"),

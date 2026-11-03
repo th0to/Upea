@@ -1,0 +1,44 @@
+// Algorithmes de graphes : chemins (poids négatifs compris), structure,
+// arbres couvrants et flot maximal.
+tuu g = upea {
+    "A" -> "B" : 4,
+    "A" -> "C" : 2,
+    "C" -> "B" : -1,
+    "B" -> "D" : 3,
+    "C" -> "D" : 5,
+};
+faaite bellman_ford(g, "A", "D"), distance(g, "A", "D");
+faaite bfs(g, "A"), dfs(g, "A");
+faaite tri_topologique(g), cycle(g);
+faaite floyd_warshall(g);
+
+tuu reseau = upea { 1 -> 2, 2 -> 3, 3 -> 1, 3 -> 4, 4 -> 5, 5 -> 4, 6 -> 7 };
+faaite tarjan(reseau);
+faaite composantes(reseau);
+faaite cycle(reseau), tri_topologique(reseau);
+
+tuu carre = upea { "a" <-> "b", "b" <-> "c", "c" <-> "d", "d" <-> "a" };
+tuu triangle = upea { "a" <-> "b", "b" <-> "c", "c" <-> "a" };
+faaite biparti(carre), biparti(triangle);
+
+tuu iles = upea {
+    "Tahiti" <-> "Moorea" : 17,
+    "Tahiti" <-> "Huahine" : 170,
+    "Moorea" <-> "Huahine" : 160,
+    "Huahine" <-> "Raiatea" : 40,
+    "Raiatea" <-> "Bora Bora" : 70,
+    "Tahiti" <-> "Raiatea" : 220,
+};
+faaite dijkstra(iles, "Tahiti", "Bora Bora"), distance(iles, "Tahiti", "Bora Bora");
+tuu couvrant = kruskal(iles);
+faaite couvrant;
+faaite prim(iles) == couvrant, roa(couvrant);
+
+tuu tuyaux = upea {
+    "source" -> "a" : 10,
+    "source" -> "b" : 5,
+    "a" -> "b" : 15,
+    "a" -> "puits" : 5,
+    "b" -> "puits" : 10,
+};
+faaite edmonds_karp(tuyaux, "source", "puits");

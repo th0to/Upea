@@ -205,7 +205,7 @@ def test_des_programmes_bien_types_sont_acceptes(source: str) -> None:
         ),
         (
             "faaite roa(5);",
-            "roa : tapura, parau, tumu ou upea attendu, numera reçu",
+            "roa : tapura, parau, upea ou arbre attendu, numera reçu",
             1,
             12,
         ),
@@ -216,11 +216,11 @@ def test_des_programmes_bien_types_sont_acceptes(source: str) -> None:
             31,
         ),
         ("faaite tumu(1, 2);", "tumu : les enfants doivent être des tumu", 1, 16),
-        ("faaite teitei([1]);", "teitei : tumu attendu, tapura[numera] reçu", 1, 15),
+        ("faaite teitei([1]);", "teitei : arbre attendu, tapura[numera] reçu", 1, 15),
         ('faaite "z" roto [1];', "on cherche un parau dans un tapura[numera]", 1, 8),
         (
             "faaite 1 roto 5;",
-            "roto attend une tapura, un parau, un tumu ou un upea",
+            "roto attend une tapura, un parau, un upea ou un arbre",
             1,
             15,
         ),

@@ -5,6 +5,7 @@ avec le module `ast`. `ast.unparse` en tire un code aux parenthèses minimales, 
 from __future__ import annotations
 
 import ast
+from itertools import chain
 from types import CodeType
 from typing import assert_never
 
@@ -18,6 +19,7 @@ from .noeuds import (
     Bloc,
     Booleen,
     Champ,
+    Collection,
     Decimal,
     Declaration,
     Entier,
@@ -94,8 +96,12 @@ class _Constructeur:
     def __init__(self, analyse: Analyse) -> None:
         self.analyse = analyse
 
+    def suite(self, instructions: tuple[Instr, ...]) -> list[ast.stmt]:
+        """Une instruction Upea donne une ou plusieurs instructions Python."""
+        return list(chain.from_iterable(map(self.instruction, instructions)))
+
     def bloc(self, bloc: Bloc) -> list[ast.stmt]:
-        instructions = [s for i in bloc.instructions for s in self.instruction(i)]
+        instructions = self.suite(bloc.instructions)
         return instructions or [ast.Pass()]
 
     def instruction(self, instr: Instr) -> list[ast.stmt]:
@@ -187,9 +193,7 @@ class _Constructeur:
                     ast.Global(names=[nom_python(g) for g in globales]), fonction.pos
                 )
             )
-        corps.extend(
-            s for i in fonction.corps.instructions for s in self.instruction(i)
-        )
+        corps.extend(self.suite(fonction.corps.instructions))
         return ast.FunctionDef(
             name=nom_python(fonction.nom),
             args=ast.arguments(
@@ -241,6 +245,11 @@ class _Constructeur:
             case Graphe(aretes):
                 triplets: list[ast.expr] = []
                 for arete in aretes:
+                    if arete.arrivee is None:
+                        vides = map(ast.Constant, (None, None, False))
+                        seul = [self.expr(arete.depart), *vides]
+                        triplets.append(ast.Tuple(elts=seul, ctx=ast.Load()))
+                        continue
                     poids = (
                         ast.Constant(1)
                         if arete.poids is None
@@ -250,6 +259,10 @@ class _Constructeur:
                     champs = [*extremites, poids, ast.Constant(arete.double)]
                     triplets.append(ast.Tuple(elts=champs, ctx=ast.Load()))
                 return _appel("_graphe", [ast.List(elts=triplets, ctx=ast.Load())])
+            case Collection(sorte, elements, ordre):
+                cles = ast.List(elts=[self.expr(e) for e in elements], ctx=ast.Load())
+                ordres = [] if ordre is None else [ast.Constant(ordre)]
+                return _appel(f"_{sorte}", [cles, *ordres])
             case Unaire(op, operande):
                 unaire = ast.USub() if op == "-" else ast.Not()
                 return ast.UnaryOp(op=unaire, operand=self.expr(operande))
@@ -286,7 +299,7 @@ class GenerateurAst:
     def module(self, programme: Programme, analyse: Analyse) -> ast.Module:
         """L'arbre Python du programme seul (sans prélude), aux lignes d'Upea."""
         constructeur = _Constructeur(analyse)
-        corps = [s for i in programme.instructions for s in constructeur.instruction(i)]
+        corps = constructeur.suite(programme.instructions)
         return ast.fix_missing_locations(ast.Module(body=corps, type_ignores=[]))
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:

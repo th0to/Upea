@@ -22,7 +22,7 @@ tuu iles = upea {
     "Raiatea" <-> "Bora Bora" : 70,
 };
 
-ohipa distance(g, chemin) -> numera {
+ohipa longueur_trajet(g, chemin) -> numera {
     tuu total = 0;
     tataitahi i roto 1..roa(chemin) {
         total = total + teiaha(g, chemin[i - 1], chemin[i]);
@@ -35,7 +35,7 @@ tataitahi ile roto iles mai "Tahiti" aano {
 }
 tuu trajet = ea(iles, "Tahiti", "Bora Bora");
 ahani trajet != aore {
-    faaite trajet, distance(iles, trajet), "km";
+    faaite trajet, longueur_trajet(iles, trajet), "km";
 }
 ```
 
@@ -67,6 +67,14 @@ Les mots-clés sont des mots tahitiens écrits **en ASCII**, sans ʻeta (coup de
 | `ma` | mā, avec | et logique |
 | `anei` | ʻaneʻi, ou bien | ou logique |
 | `eiaha` | ʻeiaha, ne pas | non logique |
+| `imi` | ʻimi, chercher | arbre binaire de recherche (ABR) |
+| `aifaito` | ʻaifāito, égal, équilibré | arbre AVL |
+| `uteere` | ʻuteʻute (rouge) + ʻereʻere (noir) | arbre rouge-noir |
+| `pupu` | pupu, groupe | arbre B |
+| `ahu` | ahu, tas de pierres | tas min (file de priorité) |
+| `ahunui` | ahu + nui, grand | tas max |
+
+Les six derniers mots (les arbres ordonnés) sont des propositions, à confirmer comme les autres.
 
 Les noms des types et des fonctions prédéfinies (`numera`, `parau`, `tumu`, `roa`…) ne sont **pas** des mots-clés : ce sont des identifiants que le compilateur connaît d'avance (voir *Fonctions prédéfinies* et *Types*).
 
@@ -77,7 +85,7 @@ Les noms des types et des fonctions prédéfinies (`numera`, `parau`, `tumu`, `r
 - **Entiers** : une suite de chiffres ASCII, `0`, `42`. **Décimaux** : au moins un chiffre de chaque côté du point, `3.14`. `1.` et `.5` sont refusés (écrire `1.0` et `0.5`), car `1..5` et `1..=5` sont des intervalles, et `t.hotu` un accès de champ. Un nombre collé à une lettre (`12abc`) est une erreur lexicale.
 - **Textes** : entre guillemets droits, `"..."`, sur une seule ligne. Échappements acceptés : `\n` (saut de ligne), `\t` (tabulation), `\"` (guillemet) et `\\` (barre oblique). Tout autre échappement est une erreur. Le texte vide `""` est permis.
 - **Identifiants** : une lettre (les lettres accentuées sont permises : `déjà`, `île`), puis des lettres, des chiffres ou `_`. Un identifiant **ne commence jamais par `_`** : ce préfixe est réservé au code Python généré. Un mot-clé n'est jamais le préfixe d'un identifiant : `iaora` et `tuu_x` sont des identifiants. Un identifiant mal formé (`x²`) est une erreur lexicale. La casse compte : `Tuu` est un identifiant.
-- **Mots-clés** : `tuu mau ohipa hoi ahani taae tamau tataitahi roto mai aano hohonu faaea haere faaite upea tia hape aore ma anei eiaha`.
+- **Mots-clés** : `tuu mau ohipa hoi ahani taae tamau tataitahi roto mai aano hohonu faaea haere faaite upea tia hape aore ma anei eiaha imi aifaito uteere pupu ahu ahunui`.
 - **Symboles** : `( ) { } [ ] , ; : . .. ..= -> <-> + - * / % = == != < <= > >=`.
 
 Les jetons qui se ressemblent sont lus du plus long au plus court :
@@ -104,7 +112,8 @@ instruction   = declaration | fonction | si | tantque | pour | rupture | retour
 
 declaration   = ( "tuu" | "mau" ) IDENT [ annotation ] "=" expression ";" ;
 annotation    = ":" type ;
-type          = ( IDENT | "upea" | "aore" ) [ "[" type "]" ] ;
+type          = ( IDENT | "upea" | "aore" | "imi" | "aifaito" | "uteere" | "pupu" | "ahu" )
+                [ "[" type "]" ] ;
 fonction      = "ohipa" IDENT "(" [ parametre { "," parametre } ] ")"
                 [ "->" type ] bloc ;
 parametre     = IDENT [ annotation ] ;
@@ -133,18 +142,21 @@ unaire        = "-" unaire | postfixe ;
 postfixe      = primaire { "(" [ arguments ] ")" | "[" expression "]" | "." IDENT } ;
 arguments     = expression { "," expression } ;
 primaire      = ENTIER | DECIMAL | TEXTE | "tia" | "hape" | "aore" | IDENT
-              | "(" expression ")" | "[" [ arguments ] "]" | graphe ;
+              | "(" expression ")" | "[" [ arguments ] "]" | graphe | ordonne ;
 graphe        = "upea" "{" [ arete { "," arete } [ "," ] ] "}" ;
-arete         = expression ( "->" | "<->" ) expression [ ":" expression ] ;
+arete         = expression [ ( "->" | "<->" ) expression [ ":" expression ] ] ;
+ordonne       = ( "imi" | "aifaito" | "uteere" | "ahu" | "ahunui" ) "[" [ arguments ] "]"
+              | "pupu" [ ENTIER ] "[" [ arguments ] "]" ;
 ```
 
 Remarques :
 
 - Une affectation commence comme une expression : le parser lit d'abord une expression, puis, si un `=` suit, vérifie que c'est une cible valide (une variable, un élément `t[i]` ou un champ `t.hotu`).
 - `comparaison` n'a **qu'un seul** opérateur facultatif : les comparaisons ne s'enchaînent pas (voir ci-dessous).
-- Dans une `arete`, `->`, `<->` et `:` ne sont pas des opérateurs d'expression : chaque extrémité s'arrête d'elle-même devant eux.
+- Dans une `arete`, `->`, `<->` et `:` ne sont pas des opérateurs d'expression : chaque extrémité s'arrête d'elle-même devant eux. Une `arete` sans flèche est un nœud seul : `upea { "Rangiroa", "A" -> "B" }`.
 - `upea` est toujours suivi de `{` : `ahani g == upea {} { … }` n'est donc pas ambigu.
 - `tumu(…)` (un arbre) n'a pas de syntaxe à lui : c'est un appel de fonction prédéfinie.
+- Un arbre ordonné s'écrit comme une liste précédée de sa sorte : `aifaito [5, 3, 8]`. Pour l'arbre B, l'ordre (un entier écrit tel quel) peut suivre `pupu` : `pupu 5 [1, 2]` ; sans lui, l'ordre vaut 3.
 
 ## Priorité et associativité des opérateurs
 
@@ -182,6 +194,7 @@ Points particuliers :
 | liste | `[1, 2, 3]`, `[]` | modifiable, éléments de sortes quelconques |
 | arbre | `tumu(1, tumu(2), tumu(3))` | nœud n-aire modifiable |
 | graphe | `upea { "A" -> "B" : 3 }` | graphe orienté pondéré, modifiable |
+| arbre ordonné | `aifaito [5, 3, 8]`, `pupu 4 [1, 2]`, `ahu [3, 1]` | ABR, AVL, rouge-noir, arbre B ou tas ; modifiable |
 
 ### Variables, constantes et portées
 
@@ -226,6 +239,9 @@ La variable de boucle n'existe que dans le bloc, et ne peut pas y être affecté
 | `tataitahi m roto graphe` | les nœuds du graphe, dans l'ordre où ils y sont apparus |
 | `tataitahi m roto graphe mai d` | les nœuds atteignables depuis `d`, en profondeur (ordre préfixe, `d` d'abord) |
 | `tataitahi m roto graphe mai d aano` | les nœuds atteignables depuis `d`, en largeur (`d` d'abord) |
+| `tataitahi x roto ordonne` | **les clés** dans l'ordre croissant ; pour un tas, dans l'ordre de priorité (croissant pour `ahu`, décroissant pour `ahunui`) |
+| `tataitahi x roto ordonne hohonu` | les clés en ordre préfixe (nœud par nœud, comme `prefixe`) |
+| `tataitahi x roto ordonne aano` | les clés en largeur (comme `largeur`) |
 
 Dans un parcours, les successeurs d'un nœud sont visités dans l'ordre où leurs arcs ont été ajoutés : la sortie est toujours la même. Ce qui est parcouru est **fixé au début de la boucle** : ajouter un élément à une liste pendant qu'on la parcourt ne rallonge pas la boucle.
 
@@ -241,10 +257,28 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 ### Graphes (`upea`)
 
 - Un graphe est **orienté** et **pondéré**. Ses nœuds sont des textes ou des entiers (ou des décimaux), jamais des listes, des arbres ou des booléens.
-- `a -> b` ajoute un arc de `a` vers `b`, `a <-> b` ajoute les deux arcs. `: p` donne un poids à l'arc ; sans poids, il vaut `1`. Un poids est un nombre positif ou nul.
-- Un nœud existe dès qu'un arc le touche ; les nœuds sont rangés dans l'ordre où ils apparaissent. Ajouter un arc qui existe déjà remplace son poids.
+- `a -> b` ajoute un arc de `a` vers `b`, `a <-> b` ajoute les deux arcs. `: p` donne un poids à l'arc ; sans poids, il vaut `1`. Un poids est un nombre, éventuellement négatif (seuls `dijkstra`, `ea` et `edmonds_karp` refusent les poids négatifs).
+- Un nœud existe dès qu'un arc le touche, ou dès qu'il est écrit seul dans le littéral (`upea { "Rangiroa" }`) ; les nœuds sont rangés dans l'ordre où ils apparaissent. Ajouter un arc qui existe déjà remplace son poids.
 - `v roto g` vaut `tia` si `v` est un nœud de `g`.
 - `==` compare deux graphes par leurs nœuds et leurs arcs (poids compris), quel que soit l'ordre d'ajout.
+- `tatara(g, v)` retire le nœud `v` et tous ses arcs.
+
+### Arbres ordonnés (`imi`, `aifaito`, `uteere`, `pupu`, `ahu`, `ahunui`)
+
+| Littéral | Structure | Garantie |
+|---|---|---|
+| `imi [5, 3, 8]` | arbre binaire de recherche (ABR) | aucune : rempli dans l'ordre, il devient un peigne |
+| `aifaito [5, 3, 8]` | AVL | en chaque nœud, les hauteurs des deux sous-arbres diffèrent d'au plus 1 |
+| `uteere [5, 3, 8]` | rouge-noir, dans la variante « penchée à gauche » de Sedgewick | racine noire, jamais deux rouges de suite, même nombre de noirs sur chaque chemin |
+| `pupu [10, 20]`, `pupu 5 [...]` | arbre B d'ordre m (3 par défaut, au moins 3) | au plus m enfants et m − 1 clés par nœud, au moins ⌈m/2⌉ − 1 hors de la racine, feuilles toutes au même niveau |
+| `ahu [5, 1, 3]` | tas min (file de priorité) | chaque nœud est plus petit que ses enfants |
+| `ahunui [5, 1, 3]` | tas max | chaque nœud est plus grand que ses enfants |
+
+- Les clés sont des nombres ou des textes, **comparables entre elles** : un arbre ne mélange pas nombres et textes.
+- Les ABR, AVL, rouge-noir et arbres B sont des **ensembles** : ajouter une clé déjà présente ne fait rien. Un tas garde les doublons.
+- Opérations : `amui(c, x)` ajoute, `tatara(c, x)` retire (et rend `tia` si la clé était là), `iriti(c)` extrait le sommet d'un tas ou la plus petite clé d'un arbre, `iti(c)` et `rahi(c)` donnent la plus petite et la plus grande clé, `x roto c` teste l'appartenance, `roa(c)` compte les clés. `iriti`, `iti` et `rahi` sur une structure vide sont des erreurs d'exécution.
+- L'insertion et le retrait rééquilibrent l'AVL (rotations), le rouge-noir (rotations et changements de couleur) et l'arbre B (éclatement d'un nœud plein en remontant sa clé médiane ; au retrait, emprunt à un frère ou fusion de deux frères). `hohoa` permet de le voir.
+- `==` compare la sorte et la suite des clés, pas la forme : `aifaito [1, 2] == aifaito [2, 1]` vaut `tia`.
 
 ### Opérateurs
 
@@ -252,7 +286,7 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 - `+` concatène aussi deux textes, ou deux listes (le résultat est une nouvelle liste). `"a" + 1` est une erreur : on écrit `"a" + parau(1)`.
 - `< <= > >=` comparent deux nombres, ou deux textes (ordre alphabétique). `==` et `!=` comparent n'importe quelles valeurs.
 - `ma` et `anei` sont paresseux : `hape ma f()` n'appelle pas `f`.
-- `roto` teste l'appartenance : à une liste (un élément égal), à un texte (un sous-texte), à un arbre (une valeur de nœud), à un graphe (un nœud).
+- `roto` teste l'appartenance : à une liste (un élément égal), à un texte (un sous-texte), à un arbre (une valeur de nœud), à un graphe (un nœud), à un arbre ordonné (une clé).
 - `t[i]` lit l'élément `i` d'une liste ou d'un texte, en comptant à partir de 0 ; un indice négatif compte depuis la fin (`t[-1]` est le dernier).
 
 ### Affichage
@@ -260,27 +294,96 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 - `faaite a, b, c;` affiche ses valeurs séparées par une espace, puis un saut de ligne. `faaite;` affiche une ligne vide.
 - Les textes s'affichent sans guillemets ; les entiers et les décimaux comme en Python (`3`, `3.5`, `3.0`) ; les booléens `tia` / `hape` ; l'absence de valeur `aore`.
 - Les listes s'affichent `[1, 2, 3]`. **À l'intérieur** d'une liste, d'un arbre ou d'un graphe, les textes sont entre guillemets, avec leurs échappements : `["a", "b\"c"]`.
-- Un arbre s'affiche avec la syntaxe qui le construit : `tumu(1, tumu(2), tumu(3, tumu(4)))`.
-- Un graphe s'affiche avec la syntaxe du littéral, un arc par arc orienté, dans l'ordre d'ajout ; le poids n'est affiché que s'il est différent de 1 : `upea { "A" -> "B" : 3, "B" -> "A" : 3, "B" -> "C" }`. Le graphe vide s'affiche `upea {}`.
+- **Une structure seule est dessinée** : `faaite t;`, quand `t` est un arbre ou un graphe non vide, écrit son dessin sur plusieurs lignes, le même que `hohoa(t)` (voir *Dessins*). Partout ailleurs (avec d'autres valeurs dans le même `faaite`, dans une liste, par `parau`), elle s'écrit sur une ligne, dans sa **forme compacte**, relisible par le parser :
+  - un `tumu` avec la syntaxe qui le construit : `tumu(1, tumu(2), tumu(3, tumu(4)))` ;
+  - un graphe avec la syntaxe du littéral, dans l'ordre d'ajout. Un arc et son retour de même poids s'écrivent `<->`, un nœud que rien ne relie s'écrit seul, et le poids n'est écrit que s'il diffère de 1 : `upea { "A" <-> "B" : 3, "B" -> "C", "D" }`. Le graphe vide s'écrit `upea {}`. Relu, ce texte redonne un graphe égal (`==`), mais l'ordre des successeurs d'un nœud peut changer ;
+  - un arbre ordonné avec son littéral, ses clés dans l'ordre de `tataitahi` : `aifaito [1, 4, 5, 8]`, `pupu 3 [10, 20]` (l'ordre est toujours écrit), `ahunui [9, 5, 1]`.
+- Une structure vide n'a pas de dessin : `faaite imi [];` écrit `imi []`.
+
+### Dessins
+
+```
+faaite aifaito [1, 2, 3, 4, 5, 6, 7];      faaite iles;
+      4                                    upea : 5 nœuds, 8 arcs
+  ┌───┴───┐                                Tahiti    → Moorea (17)
+  2       6                                Moorea    → Tahiti (17), Huahine (160)
+┌─┴─┐   ┌─┴─┐                              Huahine   → Raiatea (40), Moorea (160)
+1   3   5   7                              Raiatea   → Huahine (40), Bora Bora (70)
+                                           Bora Bora → Raiatea (70)
+```
+
+- Les **arbres binaires** (`imi`, `aifaito`, `uteere`, et les tas `ahu` / `ahunui`) se dessinent de haut en bas : la racine en haut, ses enfants sur la ligne d'en dessous, reliés par `┌─┴─┐`. Un enfant seul est relié par `┌─┘` (à gauche) ou `└─┐` (à droite), ce qui montre son côté. Une ligne sur deux porte les clés d'un niveau, de gauche à droite.
+- Un dessin de haut en bas qui dépasserait **80 colonnes** (un `imi` rempli dans l'ordre, des clés longues) se fait en retrait.
+- Les `tumu` et les arbres B (`pupu`) se dessinent **en retrait**, un nœud par ligne (`├──`, `└──`) ; dans un arbre binaire dessiné ainsi, `·` marque un enfant absent.
+- Dans les dessins, les textes n'ont pas de guillemets ; `(R)` / `(N)` marque la couleur d'un nœud rouge-noir, et `[a | b]` un nœud d'arbre B.
+- Un **graphe** se dessine en liste d'adjacence : un en-tête (nombre de nœuds et d'arcs), puis une ligne par nœud, dans l'ordre d'apparition, avec ses successeurs et le poids des arcs qui ne valent pas 1 ; `·` marque un nœud sans successeur.
+- **Couleurs** : quand la sortie est un terminal, `faaite` d'une structure seule colore son dessin (nœuds rouges du rouge-noir en rouge, poids en jaune, traits atténués). La variable d'environnement `NO_COLOR` les supprime et `FORCE_COLOR` les impose. Une sortie redirigée vers un fichier n'en a jamais, et les textes rendus par les fonctions ci-dessous non plus.
+
+| Fonction | Ce qu'elle rend (un `parau`) |
+|---|---|
+| `hohoa(x)` | *hōhoʻa*, image : le dessin de l'arbre ou du graphe `x`, sans couleurs ; `(vide)` pour une structure vide |
+| `matrice(g)` | la matrice d'adjacence : une ligne et une colonne par nœud, le poids de chaque arc, `·` en l'absence d'arc ; `(vide)` pour un graphe vide |
+| `dot(x)` | le texte **Graphviz** de l'arbre ou du graphe `x` (`dot -Tsvg` en fait une image). Les arbres gardent l'ordre et le côté de leurs enfants ; les nœuds rouges y sont rouges, ceux d'un arbre B des boîtes ; les arêtes doubles ont deux pointes, et les poids sont écrits sur les arcs |
+| `mermaid(x)` | le texte **Mermaid** de l'arbre ou du graphe `x`, avec les mêmes conventions |
 
 ### Fonctions prédéfinies
 
 | Fonction | Ce qu'elle fait |
 |---|---|
-| `roa(x)` | *roa*, long : longueur d'une liste ou d'un texte, nombre de nœuds d'un arbre, nombre de nœuds d'un graphe |
-| `amui(l, x)` | *ʻāmui*, réunir : ajoute `x` à la fin de la liste `l` ; renvoie `aore` |
+| `roa(x)` | *roa*, long : longueur d'une liste ou d'un texte, nombre de nœuds d'un `tumu`, de clés d'un arbre ordonné, de nœuds d'un graphe |
+| `amui(c, x)` | *ʻāmui*, réunir : ajoute `x` à la fin de la liste `c`, ou dans l'arbre ordonné `c` ; renvoie `aore` |
+| `tatara(c, x)` | *tatara*, défaire : retire `x` d'une liste (sa première occurrence), d'un arbre ordonné, ou d'un graphe (le nœud et ses arcs) ; renvoie `tia` si `x` y était |
+| `iriti(c)` | *ʻiriti*, arracher : retire et rend le sommet d'un tas, ou la plus petite clé d'un arbre ordonné |
+| `iti(c)`, `rahi(c)` | *iti*, petit ; *rahi*, grand : la plus petite, la plus grande valeur d'une liste ou d'un arbre ordonné |
 | `numera(x)` | convertit en entier un texte (`"41"`), un décimal (tronqué vers zéro) ou un booléen |
 | `tuhaa(x)` | *tuhaʻa*, part, fraction : convertit en décimal un texte ou un entier |
-| `parau(x)` | *parau*, parole : le texte qu'afficherait `faaite x` |
+| `parau(x)` | *parau*, parole : le texte qu'afficherait `faaite x` ; pour un arbre ou un graphe, sa forme compacte, sur une ligne |
 | `tumu(v, e…)` | *tumu*, tronc, racine : construit un nœud d'arbre (voir *Arbres*) |
-| `teitei(t)` | *teitei*, haut : hauteur d'un arbre, en arcs ; une feuille a la hauteur 0 |
-| `rau(t)` | *rau*, feuille : la liste des valeurs des feuilles, de gauche à droite |
 | `taati(g, a, b)` | *taʻati*, relier : ajoute l'arc `a -> b` de poids 1 ; `taati(g, a, b, p)` de poids `p` ; renvoie `aore` |
 | `pihai(g, a)` | *pīhaʻi*, à côté : la liste des successeurs de `a`, dans l'ordre d'ajout |
 | `motu(g)` | *motu*, île : la liste des nœuds du graphe |
 | `teiaha(g, a, b)` | *teiaha*, poids : le poids de l'arc `a -> b` |
 | `tae(g, a, b)` | *tae*, arriver : `tia` si `b` est atteignable depuis `a` (un nœud s'atteint lui-même) |
-| `ea(g, a, b)` | *ʻeʻa*, chemin : le plus court chemin pondéré de `a` à `b` (algorithme de Dijkstra), sous forme de liste de nœuds, ou `aore` s'il n'y en a pas |
+| `ea(g, a, b)` | *ʻeʻa*, chemin : un autre nom de `dijkstra(g, a, b)` |
+
+### Algorithmes d'arbres
+
+Ils marchent sur **toutes** les sortes d'arbres : `tumu`, `imi`, `aifaito`, `uteere`, `pupu` et les tas (vus comme l'arbre binaire complet qu'ils rangent). Un nœud d'arbre B porte plusieurs clés : les parcours les donnent toutes, dans l'ordre.
+
+| Fonction | Ce qu'elle rend |
+|---|---|
+| `prefixe(t)` | les clés en ordre préfixe : un nœud, puis ses enfants de gauche à droite |
+| `infixe(t)` | les clés en ordre infixe : l'enfant gauche, le nœud, l'enfant droit (pour un `tumu` : le premier enfant, le nœud, puis les autres ; pour un arbre B, enfants et clés alternés). Pour un arbre de recherche, c'est l'ordre croissant |
+| `postfixe(t)` | les clés en ordre postfixe : les enfants, puis le nœud |
+| `largeur(t)` | les clés niveau par niveau, de gauche à droite |
+| `teitei(t)` | *teitei*, haut : la hauteur en arcs ; une feuille a la hauteur 0, un arbre vide −1 |
+| `rau(t)` | *rau*, feuille : les clés des feuilles, de gauche à droite |
+| `profondeur(t, v)` | la profondeur du premier nœud (en largeur) qui porte `v`, ou `aore` |
+| `ancetre(t, a, b)` | le plus proche ancêtre commun des nœuds qui portent `a` et `b` (sa clé, ou la liste de ses clés pour un nœud d'arbre B), ou `aore` si l'une manque |
+| `diametre(t)` | le plus long chemin entre deux nœuds, en arcs |
+| `equilibre(t)` | `tia` si, en chaque nœud, les hauteurs des sous-arbres diffèrent d'au plus 1 (un enfant absent d'un arbre binaire compte pour −1 ; dans un `tumu`, seuls les enfants présents comptent) |
+| `hohoa(t)` | le dessin de l'arbre (voir *Dessins*) |
+
+### Algorithmes de graphes
+
+À égalité, l'ordre d'apparition des nœuds et des arcs décide toujours : les résultats sont déterministes.
+
+| Fonction | Ce qu'elle rend |
+|---|---|
+| `bfs(g, a)`, `dfs(g, a)` | les nœuds atteignables depuis `a`, en largeur ou en profondeur (comme `tataitahi … mai a`) |
+| `dijkstra(g, a, b)` | le plus court chemin pondéré de `a` à `b` (une liste de nœuds), ou `aore` ; refuse les poids négatifs |
+| `bellman_ford(g, a, b)` | idem, poids négatifs permis ; erreur si un cycle de poids négatif est atteignable depuis `a` |
+| `distance(g, a, b)` | le poids du plus court chemin, ou `aore` (Bellman-Ford s'il y a des poids négatifs, Dijkstra sinon) |
+| `floyd_warshall(g)` | le graphe des distances : un arc `a -> b` de poids la distance de `a` à `b`, pour chaque `b ≠ a` atteignable |
+| `tri_topologique(g)` | les nœuds dans un ordre où chaque arc va vers l'avant (algorithme de Kahn), ou `aore` s'il y a un cycle |
+| `cycle(g)` | `tia` si le graphe a un cycle |
+| `composantes(g)` | les composantes connexes, arcs pris sans orientation (une liste de listes) |
+| `tarjan(g)` | les composantes fortement connexes (algorithme de Tarjan) |
+| `biparti(g)` | `tia` si l'on peut colorer les nœuds en deux couleurs sans arête entre deux nœuds de même couleur (arcs pris sans orientation) |
+| `prim(g)`, `kruskal(g)` | un arbre (ou une forêt) couvrant de poids minimal, rendu comme un `upea` aux arêtes doubles ; une arête vaut le plus petit poids de ses deux sens |
+| `edmonds_karp(g, s, p)` | le flot maximal de `s` à `p`, les poids étant les capacités (positives) |
+
+Dans les listes de composantes, chaque composante suit l'ordre d'apparition de ses nœuds, et les composantes l'ordre de leur premier nœud.
 
 ### Erreurs d'exécution
 
@@ -297,6 +400,11 @@ Le programme s'arrête, et l'utilisateur voit la **ligne Upea** en cause, jamais
 | `tataitahi x roto 5 { … }` | on ne peut pas parcourir un numera |
 | `x.hotu` (x n'est pas un arbre) | seul un tumu a les champs hotu et amaa |
 | récursion sans fin | récursion trop profonde |
+| `iriti(ahu [])` | iriti : le ahu est vide |
+| `amui(aifaito [1], "a")` | clés incomparables dans un aifaito : numera et parau |
+| `dijkstra(upea { 1 -> 2 : -1 }, 1, 2)` | dijkstra : poids négatif : utilisez bellman_ford |
+| `bellman_ford(upea { 1 -> 2 : -1, 2 -> 1 : -1 }, 1, 2)` | bellman_ford : cycle de poids négatif atteignable |
+| `hohoa([1])` | hohoa : arbre ou upea attendu, tapura reçu |
 
 ## Types (extension 12)
 
@@ -312,6 +420,7 @@ Le typage est **graduel**. On peut annoter les déclarations, les paramètres et
 | `tapura[T]` | listes d'éléments de type `T` (*tāpura*, liste) ; `tapura` seul vaut `tapura[?]` |
 | `tumu[T]` | arbres dont les nœuds ont des valeurs de type `T` |
 | `upea[T]` | graphes dont les nœuds sont de type `T` |
+| `imi[T]`, `aifaito[T]`, `uteere[T]`, `pupu[T]`, `ahu[T]` | arbres ordonnés de clés de type `T` (un `ahunui` est un `ahu`) |
 
 Règles :
 
@@ -335,7 +444,13 @@ Règles :
 | `upea { a -> b, … }` | `upea` du type commun des nœuds |
 | variable d'une boucle sur `tapura[T]`, `tumu[T]`, `upea[T]` | `T`, `tumu[T]`, `T` |
 | `pihai(g, a)`, `motu(g)` avec `g : upea[T]` | `tapura[T]` |
-| `ea(…)`, `teiaha(…)` | `?` |
+| `aifaito [a, b]` (et les autres littéraux ordonnés) | la sorte, du type commun des clés ; une clé doit être un `numera`, un `tuhaa` ou un `parau`, et nombres et textes ne se mélangent pas |
+| variable d'une boucle sur un arbre ordonné de clés `T` | `T` |
+| `iriti(c)`, `iti(c)`, `rahi(c)` avec `c` de clés (ou d'éléments) `T` | `T` |
+| `prefixe(t)`, `infixe(t)`, `postfixe(t)`, `largeur(t)`, `rau(t)` sur un arbre de clés `T` | `tapura[T]` |
+| `bfs`, `dfs`, `motu`, `pihai` sur `upea[T]` ; `composantes`, `tarjan` | `tapura[T]` ; `tapura[tapura[T]]` |
+| `floyd_warshall(g)`, `prim(g)`, `kruskal(g)` avec `g : upea[T]` | `upea[T]` |
+| `ea`, `dijkstra`, `bellman_ford`, `distance`, `edmonds_karp`, `tri_topologique`, `teiaha`, `profondeur`, `ancetre` | `?` (une valeur, ou `aore`) |
 
 ## Erreurs (exemples de messages)
 
@@ -367,6 +482,10 @@ Les programmes de `exemples/` ont chacun leur sortie attendue exacte (`.attendu`
 | `04_tumu.upea` | arbres : construction, champs, récursion, `teitei`, `rau`, parcours en profondeur et en largeur, modification |
 | `05_motu.upea` | graphe des îles : littéral `upea`, parcours depuis Tahiti, `ea` (Dijkstra), `tae`, `taati`, `teiaha` |
 | `06_tahua.upea` | non-régression (~60 lignes) : tri topologique d'un graphe de tâches, détection de cycle, évaluation d'un arbre d'expression |
+| `07_aifaito.upea` | arbres ordonnés : ABR dégénéré contre AVL et rouge-noir équilibrés, double rotation, retraits, éclatement et fusion d'un arbre B, tas comme file de priorité |
+| `08_algorithmes_graphes.upea` | Bellman-Ford sur des poids négatifs, BFS, DFS, tri topologique, Floyd-Warshall, Tarjan, composantes, biparti, Dijkstra, Kruskal et Prim, flot maximal |
+| `09_algorithmes_arbres.upea` | les quatre parcours, hauteur, diamètre, feuilles, ancêtre commun, profondeur, équilibre et dessin, sur un `tumu`, un AVL et un tas |
+| `10_hohoa.upea` | les dessins : de haut en bas, en retrait (et le passage de l'un à l'autre au-delà de 80 colonnes), liste et matrice d'adjacence, nœud isolé, forme compacte, `dot` et `mermaid` |
 
 ## Utilisation
 
@@ -384,8 +503,10 @@ Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible),
 
 - Pas de dictionnaires, de fonctions imbriquées ni de fonctions comme valeurs ; pas de récursion croisée.
 - Pas de lecture au clavier, ni de fichiers, ni de réseau : un programme Upea ne touche pas au système.
-- Les arbres ont des enfants ordonnés et en nombre quelconque ; un arbre binaire « avec un trou » se représente avec une convention du programmeur.
-- Un nœud de graphe isolé (sans aucun arc) ne peut pas exister.
+- Un `tumu` a des enfants ordonnés et en nombre quelconque ; un arbre binaire « avec un trou » se représente avec une convention du programmeur (ou avec un `imi`).
+- Les dessins comptent un caractère par colonne : des clés en caractères larges (idéogrammes, emojis) décalent les traits. Les couleurs supposent un terminal qui comprend les codes ANSI (Windows Terminal, le terminal de VS Code ; pas l'ancienne console de Windows).
+- Le rouge-noir est la variante « penchée à gauche » (un lien rouge est toujours à gauche) : ses formes diffèrent de celles d'un rouge-noir classique, ses garanties sont les mêmes.
+- Les arbres ordonnés n'ont pas de champs : on ne manipule que leurs clés, par les fonctions prédéfinies. Les formes (rotations, éclatements) se voient avec `hohoa`.
 - `ma` et `anei` sur des valeurs non booléennes suivent Python (`hape anei 3` vaut `3`), de même que `tia == 1` (vaut `tia`) : le vérificateur de types refuse ces mélanges quand il connaît les types.
 - Le formateur perd les commentaires, qui ne sont pas dans l'arbre syntaxique.
 - Les colonnes d'une erreur d'exécution ne sont pas connues : seule la ligne est indiquée.

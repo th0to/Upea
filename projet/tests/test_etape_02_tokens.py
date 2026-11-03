@@ -11,6 +11,7 @@ MOTS_CLES_ATTENDUS = [
     "tuu", "mau", "ohipa", "hoi", "ahani", "taae", "tamau", "tataitahi",
     "roto", "mai", "aano", "hohonu", "faaea", "haere", "faaite", "upea",
     "tia", "hape", "aore", "ma", "anei", "eiaha",
+    "imi", "aifaito", "uteere", "pupu", "ahu", "ahunui",
 ]  # fmt: skip
 
 

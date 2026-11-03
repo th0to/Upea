@@ -8,7 +8,7 @@ ensemble dans une `ErreursMultiples`.
 from __future__ import annotations
 
 import difflib
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
@@ -29,6 +29,7 @@ from .noeuds import (
     Bloc,
     Booleen,
     Champ,
+    Collection,
     Decimal,
     Declaration,
     Entier,
@@ -58,16 +59,20 @@ from .typage import (
     COMPOSES,
     INCONNU,
     NUMERA,
+    ORDONNES,
     PARAU,
     TIAHAPE,
     TUHAA,
     Compose,
+    NomCompose,
     Signature,
     Type,
     commun_de,
     compatible,
     depuis_note,
     element,
+    element_de,
+    est_cle,
     est_nombre,
     tapura,
     tumu,
@@ -436,6 +441,12 @@ class Analyseur:
                     "'mai' ne s'emploie qu'avec un upea, pas un tumu", position
                 )
             return tumu(contenu)
+        if (cle := element_de(parcouru, ORDONNES)) is not None:
+            if noeud.depart is not None:
+                self.erreur_type(
+                    f"'mai' ne s'emploie qu'avec un upea, pas un {parcouru}", position
+                )
+            return cle  # les clés, dans l'ordre trié
         if (noeud_type := element(parcouru, "upea")) is not None:
             if depart is not None and noeud.depart is not None:
                 self.exiger(noeud_type, depart, "nœud de départ", noeud.depart.pos)
@@ -565,8 +576,10 @@ class Analyseur:
         noeuds: list[Type] = []
         for arete in noeud.aretes:
             for extremite in (arete.depart, arete.arrivee):
+                if extremite is None:  # un nœud seul
+                    continue
                 t = self.expression(extremite)
-                if not (est_nombre(t) or t in (PARAU, INCONNU)):
+                if not est_cle(t):
                     self.erreur_type(
                         f"un nœud de upea doit être un numera, un tuhaa ou un parau, "
                         f"pas un {t}",
@@ -600,81 +613,27 @@ class Analyseur:
     def _(self, noeud: Binaire) -> Type:
         gauche = self.expression(noeud.gauche)
         droite = self.expression(noeud.droite)
-        return self._binaire(noeud, gauche, droite)
+        return REGLES_BINAIRES[noeud.op](self, noeud, gauche, droite)
 
-    def _binaire(self, noeud: Binaire, gauche: Type, droite: Type) -> Type:
-        op = noeud.op
-        inconnu = INCONNU in (gauche, droite)
-
-        def incompatibles() -> Type:
+    @expression.register
+    def _(self, noeud: Collection) -> Type:
+        if noeud.sorte == "pupu" and noeud.ordre is not None and noeud.ordre < 3:
+            self.erreur("l'ordre d'un arbre B (pupu) est au moins 3", noeud.pos)
+        cles = [self.expression(e) for e in noeud.elements]
+        for expression, t in zip(noeud.elements, cles, strict=True):
+            if not est_cle(t):
+                self.erreur_type(
+                    f"une clé de {noeud.sorte} doit être un numera, un tuhaa ou un "
+                    f"parau, pas un {t}",
+                    expression.pos,
+                )
+        if any(map(est_nombre, cles)) and PARAU in cles:
             self.erreur_type(
-                f"opérandes de '{op}' incompatibles : {gauche} et {droite}", noeud.pos
+                f"clés incomparables dans un {noeud.sorte} : nombres et parau",
+                noeud.pos,
             )
-            return INCONNU
-
-        if op in ("ma", "anei"):
-            self.exiger(TIAHAPE, gauche, f"opérande de '{op}'", noeud.gauche.pos)
-            self.exiger(TIAHAPE, droite, f"opérande de '{op}'", noeud.droite.pos)
-            return TIAHAPE
-        if op in ("==", "!="):
-            if not (compatible(gauche, droite) or compatible(droite, gauche)):
-                self.erreur_type(
-                    f"comparer un {gauche} et un {droite} n'a pas de sens ('{op}')",
-                    noeud.pos,
-                )
-            return TIAHAPE
-        if op in ("<", "<=", ">", ">="):
-            ordonnes = (
-                est_nombre(gauche) and est_nombre(droite)
-            ) or gauche == droite == PARAU
-            if not (inconnu or ordonnes):
-                self.erreur_type(
-                    f"comparaison '{op}' impossible entre {gauche} et {droite}",
-                    noeud.pos,
-                )
-            return TIAHAPE
-        if op == "roto":
-            self._appartenance(noeud, gauche, droite)
-            return TIAHAPE
-        if op == "+":
-            if gauche == droite == PARAU:
-                return PARAU
-            contenu_g, contenu_d = element(gauche, "tapura"), element(droite, "tapura")
-            if isinstance(gauche, Compose) or isinstance(droite, Compose):
-                if contenu_g is None or contenu_d is None:
-                    return incompatibles()
-                return tapura(commun_de([contenu_g, contenu_d]))
-            if (gauche is PARAU or droite is PARAU) and inconnu:
-                return INCONNU
-        # Arithmétique : + - * / %
-        for t in (gauche, droite):
-            if not (est_nombre(t) or t is INCONNU):
-                return incompatibles()
-        if op == "/":
-            return TUHAA
-        if inconnu:
-            return INCONNU
-        return NUMERA if gauche is droite is NUMERA else TUHAA
-
-    def _appartenance(self, noeud: Binaire, gauche: Type, droite: Type) -> None:
-        if droite is PARAU:
-            self.exiger(
-                PARAU, gauche, "élément cherché dans un parau", noeud.gauche.pos
-            )
-            return
-        for sorte in COMPOSES:
-            contenu = element(droite, sorte)
-            if contenu is not None:
-                if not (compatible(contenu, gauche) or compatible(gauche, contenu)):
-                    self.erreur_type(
-                        f"on cherche un {gauche} dans un {droite}", noeud.gauche.pos
-                    )
-                return
-        self.erreur_type(
-            "roto attend une tapura, un parau, un tumu ou un upea à droite, "
-            f"pas un {droite}",
-            noeud.droite.pos,
-        )
+        sorte: NomCompose = "ahu" if noeud.sorte == "ahunui" else noeud.sorte
+        return Compose(sorte, commun_de([t for t in cles if est_cle(t)]))
 
     @expression.register
     def _(self, noeud: Appel) -> Type:
@@ -765,6 +724,103 @@ class Analyseur:
             )
             return INCONNU
         return contenu if noeud.nom == "hotu" else tapura(tumu(contenu))
+
+
+# --- Les règles des opérateurs binaires ----------------------------------------------
+#
+# Comme les règles de Pratt du parser : une fonction par famille d'opérateurs,
+# rangée dans une table par un décorateur paramétré.
+
+type RegleBinaire = Callable[[Analyseur, Binaire, Type, Type], Type]
+
+REGLES_BINAIRES: dict[str, RegleBinaire] = {}
+
+
+def regle(*operateurs: str) -> Callable[[RegleBinaire], RegleBinaire]:
+    """Enregistre la règle de typage de chacun des `operateurs`."""
+
+    def enregistrer(fonction: RegleBinaire) -> RegleBinaire:
+        REGLES_BINAIRES.update(dict.fromkeys(operateurs, fonction))
+        return fonction
+
+    return enregistrer
+
+
+def _incompatibles(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    a.erreur_type(
+        f"opérandes de '{noeud.op}' incompatibles : {gauche} et {droite}", noeud.pos
+    )
+    return INCONNU
+
+
+@regle("ma", "anei")
+def _logique(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    for operande, recu in ((noeud.gauche, gauche), (noeud.droite, droite)):
+        a.exiger(TIAHAPE, recu, f"opérande de '{noeud.op}'", operande.pos)
+    return TIAHAPE
+
+
+@regle("==", "!=")
+def _egalite(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    if not (compatible(gauche, droite) or compatible(droite, gauche)):
+        a.erreur_type(
+            f"comparer un {gauche} et un {droite} n'a pas de sens ('{noeud.op}')",
+            noeud.pos,
+        )
+    return TIAHAPE
+
+
+@regle("<", "<=", ">", ">=")
+def _ordre(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    ordonnes = (est_nombre(gauche) and est_nombre(droite)) or gauche == droite == PARAU
+    if not (INCONNU in (gauche, droite) or ordonnes):
+        a.erreur_type(
+            f"comparaison '{noeud.op}' impossible entre {gauche} et {droite}",
+            noeud.pos,
+        )
+    return TIAHAPE
+
+
+@regle("roto")
+def _appartenance(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    if droite is PARAU:
+        a.exiger(PARAU, gauche, "élément cherché dans un parau", noeud.gauche.pos)
+        return TIAHAPE
+    contenu = element_de(droite, COMPOSES)
+    if contenu is None:
+        a.erreur_type(
+            "roto attend une tapura, un parau, un upea ou un arbre à droite, "
+            f"pas un {droite}",
+            noeud.droite.pos,
+        )
+    elif not (compatible(contenu, gauche) or compatible(gauche, contenu)):
+        a.erreur_type(f"on cherche un {gauche} dans un {droite}", noeud.gauche.pos)
+    return TIAHAPE
+
+
+@regle("-", "*", "/", "%")
+def _arithmetique(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    if not all(est_nombre(t) or t is INCONNU for t in (gauche, droite)):
+        return _incompatibles(a, noeud, gauche, droite)
+    if noeud.op == "/":
+        return TUHAA
+    if INCONNU in (gauche, droite):
+        return INCONNU
+    return NUMERA if gauche is droite is NUMERA else TUHAA
+
+
+@regle("+")
+def _plus(a: Analyseur, noeud: Binaire, gauche: Type, droite: Type) -> Type:
+    if gauche == droite == PARAU:
+        return PARAU
+    if isinstance(gauche, Compose) or isinstance(droite, Compose):
+        contenus = [element(gauche, "tapura"), element(droite, "tapura")]
+        if None in contenus:
+            return _incompatibles(a, noeud, gauche, droite)
+        return tapura(commun_de([c for c in contenus if c is not None]))
+    if PARAU in (gauche, droite) and INCONNU in (gauche, droite):
+        return INCONNU
+    return _arithmetique(a, noeud, gauche, droite)
 
 
 def analyser(programme: Programme, *, types: bool = True) -> Analyse:
