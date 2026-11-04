@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
 from typing import Annotated, Literal
@@ -22,12 +23,16 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from . import atelier
+from . import atelier, bac_a_sable
 
 NOM = "upea"
 
 #: La taille maximale d'un source reçu par un outil (en octets UTF-8).
 TAILLE_MAX_SOURCE = 100 * 1024
+#: Le nombre d'exécutions simultanées ; les suivantes attendent leur tour.
+EXECUTIONS_SIMULTANEES = 2
+#: Ce qu'un délai dépassé montre au plus de la sortie du programme (en caractères).
+FIN_DE_SORTIE = 2000
 
 # Les arguments des outils, et leur description pour le modèle.
 Source = Annotated[
@@ -98,11 +103,14 @@ async def _stdout_vers_stderr(_: MCPServer[None]) -> AsyncIterator[None]:
         sys.stdout = sortie
 
 
-def construire_serveur(*, proteger_stdout: bool = False) -> MCPServer[None]:
+def construire_serveur(
+    *, proteger_stdout: bool = False, delai: float = bac_a_sable.DELAI
+) -> MCPServer[None]:
     """Le serveur, avec ses outils, ses ressources et ses prompts.
 
     Construit à la demande, pas à l'import : le SDK configure la journalisation dès
-    la création du serveur. `proteger_stdout` est pour le service en stdio.
+    la création du serveur. `proteger_stdout` est pour le service en stdio, `delai`
+    celui de chaque exécution (attente de son tour non comprise).
     """
     serveur = MCPServer(
         NOM,
@@ -112,6 +120,7 @@ def construire_serveur(*, proteger_stdout: bool = False) -> MCPServer[None]:
         lifespan=_stdout_vers_stderr if proteger_stdout else None,
     )
     _outils_sans_execution(serveur)
+    _outil_executer(serveur, delai)
     return serveur
 
 
@@ -210,6 +219,63 @@ def _outils_sans_execution(serveur: MCPServer[None]) -> None:
         """
         _limiter(source)
         return atelier.transpiler(source, backend, avec_prelude=avec_prelude)
+
+
+def _outil_executer(serveur: MCPServer[None], delai: float) -> None:
+    # Le SDK appelle un outil synchrone dans un fil de travail : un sémaphore de
+    # fils suffit. On attend son tour avant de lancer l'enfant, et le délai ne
+    # court qu'à partir de son lancement.
+    places = threading.BoundedSemaphore(EXECUTIONS_SIMULTANEES)
+
+    @_outil(serveur, "Exécuter un programme Upea")
+    def executer(
+        source: Source, types: Types = True, backend: Backend = "python"
+    ) -> bac_a_sable.Execution:
+        """Exécute un programme Upea et rend ce qu'il a affiché.
+
+        Quand s'en servir : une fois le programme passé par verifier sans erreur,
+        pour voir sa sortie et la comparer à ce qui est attendu. Le programme tourne
+        dans un processus séparé, avec au plus 5 s (démarrage compris), 512 Mo de
+        mémoire, et 64 Kio de sortie gardés. Un programme Upea ne lit ni clavier,
+        ni fichier, ni réseau : il ne peut qu'afficher (faaite).
+
+        Résultat :
+        - `statut` : "succes", "erreur_compilation" ou "erreur_execution" ;
+        - `code_retour` : 0, 1 (compilation) ou 3 (exécution), comme la commande
+          `python -m upea run` ;
+        - `sortie` : ce que le programme a affiché, même s'il s'est arrêté sur une
+          erreur ;
+        - `tronquee` et `octets` : la sortie dépassait 64 Kio, et sa taille entière ;
+        - `diagnostics` et `rapport` comme pour verifier : les avertissements, puis
+          l'erreur éventuelle. Une erreur d'exécution donne sa ligne Upea (sa
+          colonne est inconnue) et un message en termes d'Upea, par exemple
+          « indice hors limites » ou « mémoire dépassée ».
+
+        Une erreur de compilation ou d'exécution n'est pas une panne de l'outil :
+        c'est un résultat à lire pour corriger le programme. L'outil échoue
+        seulement si le programme dépasse son délai (une boucle sans fin, le plus
+        souvent : le message montre la fin de ce qu'il avait affiché) ou si le
+        source est trop long.
+        """
+        _limiter(source)
+        with places:
+            try:
+                return bac_a_sable.executer(
+                    source, types=types, backend=backend, delai=delai
+                )
+            except bac_a_sable.DelaiDepasse as arret:
+                raise ToolError(_delai_depasse(arret)) from None
+            except bac_a_sable.PanneDuBacASable as panne:
+                raise ToolError(str(panne)) from None
+
+
+def _delai_depasse(arret: bac_a_sable.DelaiDepasse) -> str:
+    """Le message d'un délai dépassé, avec la fin de ce que le programme a affiché."""
+    if not arret.sortie:
+        return f"{arret} ; il n'avait rien affiché"
+    fin = arret.sortie[-FIN_DE_SORTIE:]
+    coupe = "…" if len(fin) < len(arret.sortie) else ""
+    return f"{arret} ; la fin de ce qu'il avait affiché :\n{coupe}{fin}"
 
 
 def lancer() -> int:

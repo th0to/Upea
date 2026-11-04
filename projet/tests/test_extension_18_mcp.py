@@ -1,5 +1,6 @@
 """Extension 18 : le serveur MCP (`python -m upea mcp`)."""
 
+import asyncio
 import json
 import queue
 import subprocess
@@ -9,13 +10,15 @@ import time
 from collections.abc import AsyncIterator
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import pytest
 from mcp import Client
 from mcp.types import CallToolResult, TextContent
 
-from outils import PROJET
-from upea import atelier
+from outils import EXEMPLES, PROJET, lire
+from upea import atelier, bac_a_sable
+from upea.bac_a_sable import Execution
 from upea.cli import ERREUR_USAGE, OK, main
 from upea.serveur_mcp import TAILLE_MAX_SOURCE, construire_serveur
 
@@ -289,3 +292,121 @@ async def test_un_backend_inconnu_est_une_erreur_d_outil(client: Client) -> None
         "transpiler", {"source": "faaite 1;", "backend": "formateur"}
     )
     assert resultat.is_error
+
+
+# --- L'outil executer -----------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_executer_est_decrit(client: Client) -> None:
+    outils = {outil.name: outil for outil in (await client.list_tools()).tools}
+    outil = outils["executer"]
+    assert outil.description and "5 s" in outil.description
+    assert outil.output_schema is not None
+    assert set(outil.input_schema["properties"]) == {"source", "types", "backend"}
+
+
+@pytest.mark.anyio
+async def test_executer_un_exemple(client: Client) -> None:
+    exemple = EXEMPLES / "05_motu.upea"
+    resultat = await client.call_tool("executer", {"source": lire(exemple)})
+    assert not resultat.is_error
+    assert resultat.structured_content is not None
+    assert resultat.structured_content["statut"] == "succes"
+    assert resultat.structured_content["sortie"] == lire(
+        exemple.with_suffix(".attendu")
+    )
+
+
+@pytest.mark.anyio
+async def test_executer_une_erreur_d_execution_est_un_resultat(client: Client) -> None:
+    source = 'faaite "avant";\nfaaite [1, 2][5];\n'
+    resultat = await client.call_tool("executer", {"source": source})
+    assert not resultat.is_error
+    contenu = resultat.structured_content
+    assert contenu is not None
+    assert contenu["statut"] == "erreur_execution"
+    assert contenu["code_retour"] == 3
+    assert contenu["sortie"] == "avant\n"
+    assert contenu["diagnostics"] == [
+        {
+            "sorte": "execution",
+            "ligne": 2,
+            "colonne": None,
+            "message": "indice hors limites",
+        }
+    ]
+
+
+@pytest.mark.anyio
+async def test_executer_une_boucle_sans_fin_est_une_erreur_d_outil() -> None:
+    async with Client(construire_serveur(delai=2)) as client:
+        source = 'faaite "début";\ntamau tia { }\n'
+        resultat = await client.call_tool("executer", {"source": source})
+    assert resultat.is_error
+    message = texte(resultat)
+    assert "délai de 2 s dépassé" in message
+    assert "début" in message  # la fin de ce qu'il avait affiché
+
+
+@pytest.mark.anyio
+async def test_executer_une_sortie_tronquee(client: Client) -> None:
+    source = 'tataitahi i roto 0..100000 { faaite "ligne", i; }'
+    resultat = await client.call_tool("executer", {"source": source})
+    assert resultat.structured_content is not None
+    assert resultat.structured_content["tronquee"]
+    assert "tronquée" in resultat.structured_content["rapport"]
+
+
+@pytest.mark.anyio
+async def test_executer_un_source_trop_long(client: Client) -> None:
+    source = "// " + "x" * TAILLE_MAX_SOURCE
+    resultat = await client.call_tool("executer", {"source": source})
+    assert resultat.is_error
+    assert "source trop longue" in texte(resultat)
+
+
+@pytest.mark.anyio
+async def test_au_plus_deux_executions_a_la_fois(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Les suivantes attendent leur tour, et l'attente ne compte pas dans le délai."""
+    verrou = threading.Lock()
+    en_cours = 0
+    au_plus = 0
+    delais: list[float] = []
+
+    def executer_lentement(source: str, **options: Any) -> Execution:
+        nonlocal en_cours, au_plus
+        with verrou:
+            en_cours += 1
+            au_plus = max(au_plus, en_cours)
+            delais.append(options["delai"])
+        time.sleep(0.3)
+        with verrou:
+            en_cours -= 1
+        return Execution("succes", 0, "", False, 0, (), "aucune erreur")
+
+    monkeypatch.setattr(bac_a_sable, "executer", executer_lentement)
+    async with Client(construire_serveur(delai=0.5)) as client:
+        appels = [
+            client.call_tool("executer", {"source": f"faaite {i};"}) for i in range(6)
+        ]
+        resultats = await asyncio.gather(*appels)
+    assert not any(r.is_error for r in resultats)
+    assert au_plus == 2
+    # Six appels de 0,3 s, deux à la fois : les derniers attendent 0,6 s, plus que le
+    # délai de 0,5 s, mais reçoivent le délai entier.
+    assert delais == [0.5] * 6
+
+
+@pytest.mark.anyio
+async def test_des_executions_simultanees_reelles(client: Client) -> None:
+    appels = [
+        client.call_tool("executer", {"source": f"faaite {i} * 2;"}) for i in range(3)
+    ]
+    resultats = await asyncio.gather(*appels)
+    sorties = [
+        r.structured_content["sortie"] for r in resultats if r.structured_content
+    ]
+    assert sorties == ["0\n", "2\n", "4\n"]
