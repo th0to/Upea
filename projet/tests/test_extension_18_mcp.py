@@ -6,13 +6,42 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import AsyncIterator
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
+from mcp import Client
+from mcp.types import CallToolResult, TextContent
 
 from outils import PROJET
+from upea import atelier
 from upea.cli import ERREUR_USAGE, OK, main
-from upea.serveur_mcp import construire_serveur
+from upea.serveur_mcp import TAILLE_MAX_SOURCE, construire_serveur
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.fixture
+async def client() -> AsyncIterator[Client]:
+    """Un client branché en mémoire sur le serveur."""
+    async with Client(construire_serveur()) as connecte:
+        yield connecte
+
+
+def texte(resultat: CallToolResult) -> str:
+    """Le texte d'un résultat d'outil, tel que le modèle le lit."""
+    return "".join(c.text for c in resultat.content if isinstance(c, TextContent))
+
+
+def en_json(valeur: object) -> object:
+    """Une valeur telle qu'elle passe dans le protocole (les tuples deviennent des
+    listes)."""
+    return json.loads(json.dumps(valeur))
+
 
 #: Ce qu'un client envoie pour ouvrir une session (l'ancienne poignée de main, celle
 #: des clients d'avant la révision 2026-07-28 du protocole).
@@ -172,3 +201,91 @@ def test_un_print_egare_ne_va_pas_sur_stdout(tmp_path: Path) -> None:
     )
     assert [r.get("id") for r in recus] == [1, 2]
     assert "parasite" in erreurs
+
+
+# --- Les outils sans exécution : verifier, formater, transpiler -----------------------
+
+
+@pytest.mark.anyio
+async def test_les_outils_sont_decrits(client: Client) -> None:
+    outils = {outil.name: outil for outil in (await client.list_tools()).tools}
+    assert {"verifier", "formater", "transpiler"} <= set(outils)
+    for nom in ("verifier", "formater", "transpiler"):
+        outil = outils[nom]
+        assert outil.description and len(outil.description) > 200, nom
+        assert "\n    " not in outil.description, nom  # sans l'indentation du code
+        assert outil.output_schema is not None, nom  # un résultat structuré
+        assert outil.annotations is not None
+        assert outil.annotations.read_only_hint
+        source = outil.input_schema["properties"]["source"]
+        assert "Upea" in source["description"]
+    backend = outils["transpiler"].input_schema["properties"]["backend"]
+    assert backend["enum"] == ["python", "ast"]
+
+
+@pytest.mark.anyio
+async def test_verifier_rend_des_diagnostics_structures(client: Client) -> None:
+    resultat = await client.call_tool("verifier", {"source": "faaite y;"})
+    assert not resultat.is_error  # une erreur du programme est un résultat
+    attendu = asdict(atelier.verifier("faaite y;"))
+    assert resultat.structured_content == en_json(attendu)
+    assert resultat.structured_content["diagnostics"] == [
+        {
+            "sorte": "semantique",
+            "ligne": 1,
+            "colonne": 8,
+            "message": "'y' n'est pas déclaré",
+        }
+    ]
+    assert "n'est pas déclaré" in texte(resultat)
+
+
+@pytest.mark.anyio
+async def test_verifier_sans_types(client: Client) -> None:
+    source = 'tuu x: numera = "a"; faaite x;'
+    avec = await client.call_tool("verifier", {"source": source})
+    sans = await client.call_tool("verifier", {"source": source, "types": False})
+    assert avec.structured_content is not None and sans.structured_content is not None
+    assert not avec.structured_content["valide"]
+    assert sans.structured_content["valide"]
+
+
+@pytest.mark.anyio
+async def test_formater(client: Client) -> None:
+    resultat = await client.call_tool("formater", {"source": "tuu   x=1 ;faaite x ;"})
+    assert not resultat.is_error
+    assert resultat.structured_content is not None
+    assert resultat.structured_content["code"] == "tuu x = 1;\nfaaite x;\n"
+
+
+@pytest.mark.anyio
+async def test_transpiler(client: Client) -> None:
+    resultat = await client.call_tool(
+        "transpiler", {"source": "faaite 1 + 2;", "backend": "ast"}
+    )
+    assert not resultat.is_error
+    assert resultat.structured_content is not None
+    code = resultat.structured_content["code"]
+    assert code.startswith("from upea_prelude import *\n")
+    complet = await client.call_tool(
+        "transpiler", {"source": "faaite 1 + 2;", "avec_prelude": True}
+    )
+    assert complet.structured_content is not None
+    assert len(complet.structured_content["code"]) > len(code)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("outil", ["verifier", "formater", "transpiler"])
+async def test_un_source_trop_long_est_refuse(client: Client, outil: str) -> None:
+    source = "// " + "é" * (TAILLE_MAX_SOURCE // 2) + "\nfaaite 1;\n"
+    resultat = await client.call_tool(outil, {"source": source})
+    assert resultat.is_error
+    assert "source trop longue" in texte(resultat)
+
+
+@pytest.mark.anyio
+async def test_un_backend_inconnu_est_une_erreur_d_outil(client: Client) -> None:
+    resultat = await client.call_tool(
+        "transpiler", {"source": "faaite 1;", "backend": "formateur"}
+    )
+    assert resultat.is_error

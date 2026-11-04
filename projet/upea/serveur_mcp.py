@@ -11,13 +11,66 @@ JSON-RPC ne doit y être écrit. Les diagnostics vont sur la sortie d'erreur.
 
 from __future__ import annotations
 
+import inspect
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
+from typing import Annotated, Literal
 
 from mcp.server import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import ToolAnnotations
+from pydantic import Field
+
+from . import atelier
 
 NOM = "upea"
+
+#: La taille maximale d'un source reçu par un outil (en octets UTF-8).
+TAILLE_MAX_SOURCE = 100 * 1024
+
+# Les arguments des outils, et leur description pour le modèle.
+Source = Annotated[
+    str,
+    Field(
+        description=(
+            "Le programme Upea complet, tel qu'il serait écrit dans un fichier "
+            f".upea (au plus {TAILLE_MAX_SOURCE // 1024} Kio)."
+        )
+    ),
+]
+Types = Annotated[
+    bool,
+    Field(
+        description=(
+            "Vérifier aussi les types (typage graduel). false seulement pour voir ce "
+            "qu'un programme mal typé ferait à l'exécution."
+        )
+    ),
+]
+Backend = Annotated[
+    Literal["python", "ast"],
+    Field(
+        description=(
+            'Le générateur de Python : "python" (le texte, par défaut) ou "ast" (le '
+            "module ast de Python) ; les deux produisent le même programme."
+        )
+    ),
+]
+AvecPrelude = Annotated[
+    bool,
+    Field(
+        description=(
+            "Recopier le prélude (environ 2 500 lignes) en tête du code, pour un "
+            "fichier Python autonome."
+        )
+    ),
+]
+
+#: Ni effet de bord, ni accès au monde extérieur : le client peut appeler sans crainte.
+SANS_EFFET = ToolAnnotations(
+    read_only_hint=True, idempotent_hint=True, open_world_hint=False
+)
 
 INSTRUCTIONS = """\
 Upea est un petit langage impératif aux mots-clés tahitiens (tuu, ohipa, ahani, \
@@ -51,13 +104,112 @@ def construire_serveur(*, proteger_stdout: bool = False) -> MCPServer[None]:
     Construit à la demande, pas à l'import : le SDK configure la journalisation dès
     la création du serveur. `proteger_stdout` est pour le service en stdio.
     """
-    return MCPServer(
+    serveur = MCPServer(
         NOM,
         title="Upea",
         description="Le langage Upea : sa spécification, et son compilateur.",
         instructions=INSTRUCTIONS,
         lifespan=_stdout_vers_stderr if proteger_stdout else None,
     )
+    _outils_sans_execution(serveur)
+    return serveur
+
+
+def _limiter(source: str) -> None:
+    """Refuse un source trop long : c'est une panne de l'outil, pas du programme."""
+    taille = len(source.encode("utf-8"))
+    if taille > TAILLE_MAX_SOURCE:
+        raise ToolError(
+            f"source trop longue : {taille} octets en UTF-8, au plus "
+            f"{TAILLE_MAX_SOURCE} ; raccourcis le programme"
+        )
+
+
+# --- Les outils -----------------------------------------------------------------------
+# Leur docstring est la description que lit le modèle : elle dit quand s'en servir,
+# ce qu'ils rendent, et leurs pièges.
+
+
+def _outil[F: Callable[..., object]](
+    serveur: MCPServer[None], titre: str, annotations: ToolAnnotations = SANS_EFFET
+) -> Callable[[F], F]:
+    """`serveur.tool`, avec la docstring sans son indentation pour description."""
+
+    def enregistrer(fonction: F) -> F:
+        description = inspect.cleandoc(fonction.__doc__ or "")
+        decorer = serveur.tool(
+            title=titre, description=description, annotations=annotations
+        )
+        return decorer(fonction)
+
+    return enregistrer
+
+
+def _outils_sans_execution(serveur: MCPServer[None]) -> None:
+    @_outil(serveur, "Vérifier un programme Upea")
+    def verifier(source: Source, types: Types = True) -> atelier.Verification:
+        """Vérifie un programme Upea sans l'exécuter : analyse lexicale, syntaxique,
+        sémantique et (par défaut) vérification des types.
+
+        Quand s'en servir : après chaque écriture ou modification d'un programme, et
+        avant executer, jusqu'à ce que `valide` soit vrai. C'est rapide et sans effet.
+
+        Résultat :
+        - `valide` : vrai s'il n'y a aucune erreur (il peut rester des avertissements) ;
+        - `diagnostics` : des objets {sorte, ligne, colonne, message}, où sorte vaut
+          "lexicale", "syntaxe", "semantique", "type" ou "avertissement" ; ligne et
+          colonne comptent à partir de 1 (null si inconnues) ;
+        - `rapport` : les mêmes, mis en forme comme par le compilateur, avec la
+          ligne fautive et un ^ sous la colonne.
+
+        Une erreur du programme n'est pas une panne de l'outil : lis les
+        diagnostics, corrige le programme, et vérifie-le de nouveau. Toutes les
+        erreurs d'une phase sont signalées en une fois, la syntaxe d'abord, puis les
+        noms et les types : une fois la syntaxe corrigée, d'autres erreurs peuvent
+        apparaître. Les avertissements (variable jamais utilisée, code placé après
+        hoi, faaea ou haere) ne sont signalés que pour un programme sans erreur.
+        """
+        _limiter(source)
+        return atelier.verifier(source, types=types)
+
+    @_outil(serveur, "Formater un programme Upea")
+    def formater(source: Source) -> atelier.Formatage:
+        """Réécrit un programme Upea dans sa présentation canonique (indentation,
+        espaces, une instruction par ligne), sans en changer le sens.
+
+        Quand s'en servir : pour rendre lisible un programme avant de le montrer.
+        Attention : les commentaires (// et /* */) sont perdus, car ils ne font pas
+        partie de l'arbre syntaxique ; ne formate pas un programme dont les
+        commentaires comptent.
+
+        Seule la syntaxe est analysée, pas les noms ni les types. Résultat : `code`,
+        le programme réécrit (null s'il a des erreurs de syntaxe), et `diagnostics`
+        et `rapport` comme pour verifier.
+        """
+        _limiter(source)
+        return atelier.formater(source)
+
+    @_outil(serveur, "Voir le Python produit par Upea")
+    def transpiler(
+        source: Source, backend: Backend = "python", avec_prelude: AvecPrelude = False
+    ) -> atelier.Transpilation:
+        """Montre le Python 3.12 qu'Upea produit pour un programme, sans l'exécuter.
+
+        Quand s'en servir : pour comprendre ce que devient une construction d'Upea,
+        ou pour livrer un programme sous forme de Python. Inutile pour vérifier ou
+        exécuter un programme : verifier et executer le font directement.
+
+        Par défaut, le code n'inclut pas le prélude (environ 2 500 lignes : arbres,
+        graphes, algorithmes et fonctions prédéfinies, dont les noms Python
+        commencent par _) : il commence par `from upea_prelude import *`, et ne se
+        lance qu'à côté d'un fichier upea_prelude.py. Avec avec_prelude=true, le
+        prélude est recopié en tête, et le code se lance seul.
+
+        Résultat : `code` (null si le programme a des erreurs), et `diagnostics` et
+        `rapport` comme pour verifier.
+        """
+        _limiter(source)
+        return atelier.transpiler(source, backend, avec_prelude=avec_prelude)
 
 
 def lancer() -> int:
