@@ -23,6 +23,15 @@ uv run mypy projet/upea              # typage strict (passe aussi sur projet/, t
 uv run ruff check projet             # style
 ```
 
+Les propriétés de l'extension 17 (`hypothesis`) font 30 tirages par défaut (profil
+`defaut`) ; le profil `long` en fait 1 000, pour chercher plus loin (une dizaine de
+minutes) :
+
+```bash
+HYPOTHESIS_PROFILE=long uv run pytest projet -k extension_17                # bash
+$env:HYPOTHESIS_PROFILE = "long"; uv run pytest projet -k extension_17     # PowerShell
+```
+
 Depuis `projet/` :
 
 ```bash

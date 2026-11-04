@@ -4,23 +4,20 @@ hasard par `hypothesis` (les invariants des arbres ordonnés sont dans l'extensi
 - formater deux fois revient à formater une fois, sans changer le sens ;
 - relire `parau(x)` redonne une valeur égale à `x` ;
 - les deux backends affichent la même chose, et échouent de la même façon.
+
+Le nombre de tirages vient du profil choisi par HYPOTHESIS_PROFILE (`conftest.py`).
 """
 
 import io
 from contextlib import redirect_stdout
 
-from hypothesis import given, settings
+from hypothesis import given
 
 from generateurs import GRAPHES, ORDONNES, PROGRAMMES, TUMU
 from outils import lancer
 from upea.compilateur import executer, mettre_en_forme
 from upea.erreurs import ErreurExecution
 from upea.parser import parse
-
-#: Chaque exemple compile et exécute un programme, prélude compris (40 ms, et 120 ms
-#: avec le backend ast) : on en tire moins que par défaut, et l'on ne borne pas la
-#: durée d'un seul.
-REGLAGES = settings(max_examples=30, deadline=None)
 
 
 def resultat(
@@ -40,7 +37,6 @@ def resultat(
 # --- Le formateur ---------------------------------------------------------------------
 
 
-@REGLAGES
 @given(PROGRAMMES)
 def test_formater_est_idempotent_et_garde_le_sens(source: str) -> None:
     formate = mettre_en_forme(source)
@@ -60,7 +56,6 @@ def relu(litteral: str) -> str:
     return sortie[:-1]
 
 
-@REGLAGES
 @given(GRAPHES)
 def test_relire_parau_d_un_graphe_redonne_un_graphe_egal(litteral: str) -> None:
     # L'ordre des successeurs peut changer (spécification) : seule l'égalité compte.
@@ -68,7 +63,6 @@ def test_relire_parau_d_un_graphe_redonne_un_graphe_egal(litteral: str) -> None:
     assert lancer(source, types=False) == "tia\n"
 
 
-@REGLAGES
 @given(TUMU | ORDONNES)
 def test_relire_parau_d_un_arbre_redonne_le_meme_arbre(litteral: str) -> None:
     texte = relu(litteral)
@@ -80,7 +74,6 @@ def test_relire_parau_d_un_arbre_redonne_le_meme_arbre(litteral: str) -> None:
 # --- Les deux backends ----------------------------------------------------------------
 
 
-@REGLAGES
 @given(PROGRAMMES)
 def test_les_deux_backends_font_la_meme_chose(source: str) -> None:
     assert resultat(source, "ast") == resultat(source, "python")
