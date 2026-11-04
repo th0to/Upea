@@ -1,8 +1,11 @@
 """Extension 18 : le serveur MCP (`python -m upea mcp`)."""
 
 import json
+import queue
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -29,27 +32,66 @@ INITIALISE: dict[str, object] = {
 }
 
 
+#: Le plus long qu'on attende une réponse du serveur, en secondes.
+PATIENCE = 60
+
+
 def dialoguer(
     commande: list[str], messages: list[dict[str, object]]
 ) -> tuple[list[dict[str, object]], str]:
-    """Envoie `messages` à un serveur lancé en stdio, ferme son entrée et attend sa fin.
+    """Envoie `messages` à un serveur lancé en stdio, attend la réponse à chaque
+    requête, puis ferme son entrée et attend sa fin.
 
-    Rend les messages lus sur sa sortie (chaque ligne doit être un message JSON-RPC)
-    et sa sortie d'erreur.
+    Fermer l'entrée plus tôt clôt la session, et une requête encore en cours
+    resterait sans réponse. Rend les messages lus sur sa sortie (chaque ligne doit
+    être un message JSON-RPC) et sa sortie d'erreur.
     """
-    entree = "".join(json.dumps(m, ensure_ascii=False) + "\n" for m in messages)
-    fini = subprocess.run(
+    attendus = {m["id"] for m in messages if "id" in m}
+    serveur = subprocess.Popen(
         commande,
-        input=entree.encode("utf-8"),
-        capture_output=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         cwd=PROJET,
-        timeout=60,
     )
-    lignes = fini.stdout.decode("utf-8").splitlines()
-    recus = [json.loads(ligne) for ligne in lignes]
+    sortie, sortie_erreur = serveur.stdout, serveur.stderr
+    assert serveur.stdin and sortie and sortie_erreur
+    lignes: queue.Queue[bytes] = queue.Queue()
+    erreurs: list[bytes] = []
+
+    def lire_la_sortie() -> None:
+        for ligne in sortie:
+            lignes.put(ligne)
+
+    def lire_les_erreurs() -> None:
+        erreurs.append(sortie_erreur.read())
+
+    lecteurs = [
+        threading.Thread(target=lire_la_sortie),
+        threading.Thread(target=lire_les_erreurs),
+    ]
+    for lecteur in lecteurs:
+        lecteur.start()
+    recus: list[dict[str, object]] = []
+    try:
+        for message in messages:
+            serveur.stdin.write(json.dumps(message).encode("utf-8") + b"\n")
+        serveur.stdin.flush()
+        limite = time.monotonic() + PATIENCE
+        while attendus - {r.get("id") for r in recus}:
+            restant = limite - time.monotonic()
+            recus.append(json.loads(lignes.get(timeout=max(restant, 0.001))))
+        serveur.stdin.close()
+        serveur.wait(timeout=PATIENCE)
+    finally:
+        serveur.kill()
+        for lecteur in lecteurs:
+            lecteur.join(timeout=PATIENCE)
+    while not lignes.empty():
+        recus.append(json.loads(lignes.get()))
     for recu in recus:
         assert recu["jsonrpc"] == "2.0", recu
-    return recus, fini.stderr.decode("utf-8", errors="replace")
+    return recus, b"".join(erreurs).decode("utf-8", errors="replace")
 
 
 # --- La sous-commande -----------------------------------------------------------------
