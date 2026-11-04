@@ -12,6 +12,7 @@ dev = [
     "pytest>=8.3",
     "mypy>=1.13",
     "ruff>=0.8",
+    "hypothesis>=6.170.14",
 ]
 
 [tool.uv]
@@ -50,4 +51,4 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["upea", "outils"]
+known-first-party = ["upea", "outils", "generateurs"]

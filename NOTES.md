@@ -54,6 +54,7 @@ uv run python -m upea repl
 | 14 arbres ordonnés | fait : ABR `imi`, AVL `aifaito`, rouge-noir `uteere`, arbre B `pupu`, tas `ahu` / `ahunui` | `execution/recherche.py`, `arbre_b.py`, `tas.py` | `test_extension_14_*` |
 | 15 algorithmes | fait : parcours, hauteur, diamètre, ancêtre commun… sur toutes les sortes d'arbres ; Dijkstra, Bellman-Ford, Floyd-Warshall, Kahn, Tarjan, biparti, Prim, Kruskal, Edmonds-Karp | `execution/vues.py`, `algorithmes_arbres.py`, `algorithmes_graphes.py` | `test_extension_15_*` |
 | 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
+| 17 propriétés | fait (`hypothesis`) : formater est idempotent et garde le sens, relire `parau` redonne une valeur égale, les deux backends font la même chose, sur des programmes et des valeurs tirés au hasard | `tests/generateurs.py` | `test_extension_17_*` |
 
 Le serveur MCP n'est pas commencé.
 
