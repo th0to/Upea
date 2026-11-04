@@ -8,7 +8,7 @@ from types import CodeType
 
 import pytest
 
-from outils import EXEMPLES, lancer, lire
+from outils import EXEMPLES, arbres_python, lancer, lire
 from upea.compilateur import NOM_FICHIER, compiler, executer_arbre, transpiler
 from upea.erreurs import ErreurExecution
 from upea.generateur_ast import GenerateurAst, compiler_module
@@ -103,6 +103,16 @@ def test_compiler_l_arbre_ne_laisse_passer_aucun_syntaxwarning() -> None:
         with pytest.raises(ErreurExecution):
             executer_arbre("faaite (3)[0];", types=False)
     assert [a for a in avertissements if a.category is SyntaxWarning] == []
+
+
+def test_les_deux_backends_produisent_le_meme_arbre_python(exemple: Path) -> None:
+    """Test différentiel : le texte du backend python, une fois relu, est le même
+    arbre que celui que construit le backend ast (positions mises à part). Les deux
+    générateurs traduisent chaque nœud chacun à leur façon ; ce test dit s'ils
+    cessent d'être d'accord (l'extension 17 le vérifie aussi sur des programmes
+    tirés au hasard)."""
+    du_texte, de_l_arbre = arbres_python(lire(exemple))
+    assert du_texte == de_l_arbre
 
 
 def test_le_texte_produit_se_relit_avec_la_meme_structure(exemple: Path) -> None:

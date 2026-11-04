@@ -58,7 +58,7 @@ uv run python -m upea repl
 | 8 génération | fait | `emetteur.py`, `generateur.py`, `execution.py` (prélude) | `test_etape_08_*` |
 | 9 CLI, REPL | fait (`--trace`, `:tokens`, `:arbre`, `:python`) | `compilateur.py`, `cli.py`, `repl.py` | `test_etape_09_*` |
 | 10 qualité | fait (mypy strict, `Protocol`, formateur) | `backend.py`, `formateur.py` | `test_etape_10_*` |
-| 11 module `ast` | fait | `generateur_ast.py` | `test_extension_11_*` |
+| 11 module `ast` | fait ; un test différentiel vérifie que les deux backends produisent le même arbre Python (exemples, et programmes tirés au hasard) | `generateur_ast.py` | `test_extension_11_*` |
 | 12 types | fait (graduel, types paramétrés `tapura[T]`, `tumu[T]`, `upea[T]`) | `typage.py`, `predefinies.py` | `test_extension_12_*` |
 | 13 source maps | fait | `sourcemap.py` | `test_extension_13_*` |
 | 14 arbres ordonnés | fait : ABR `imi`, AVL `aifaito`, rouge-noir `uteere`, arbre B `pupu`, tas `ahu` / `ahunui` | `execution/recherche.py`, `arbre_b.py`, `tas.py` | `test_extension_14_*` |

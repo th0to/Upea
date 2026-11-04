@@ -14,7 +14,7 @@ from contextlib import redirect_stdout
 from hypothesis import given
 
 from generateurs import GRAPHES, ORDONNES, PROGRAMMES, TUMU
-from outils import lancer
+from outils import arbres_python, lancer
 from upea.compilateur import executer, mettre_en_forme
 from upea.erreurs import ErreurExecution
 from upea.parser import parse
@@ -77,3 +77,9 @@ def test_relire_parau_d_un_arbre_redonne_le_meme_arbre(litteral: str) -> None:
 @given(PROGRAMMES)
 def test_les_deux_backends_font_la_meme_chose(source: str) -> None:
     assert resultat(source, "ast") == resultat(source, "python")
+
+
+@given(PROGRAMMES)
+def test_les_deux_backends_produisent_le_meme_arbre_python(source: str) -> None:
+    du_texte, de_l_arbre = arbres_python(source, types=False)
+    assert du_texte == de_l_arbre
