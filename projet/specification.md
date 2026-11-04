@@ -504,6 +504,7 @@ python -m upea transpile programme.upea [--backend python|ast|formateur] [-o sor
 python -m upea check     programme.upea [--sans-types]
 python -m upea fmt       programme.upea [--ecrire]
 python -m upea repl
+python -m upea mcp       (serveur MCP en stdio, pour une IA ; demande le SDK : uv sync --group mcp)
 ```
 
 Par défaut, `transpile` recopie le prélude (les arbres, les graphes, les algorithmes : environ 2 500 lignes) en tête du fichier produit, qui se lance seul (`python sortie.py`). Avec `--prelude externe` (qui demande `-o`), le prélude est écrit à côté, dans `upea_prelude.py`, et le fichier produit l'importe : il ne fait plus que quelques dizaines de lignes, mais ne se lance qu'avec son voisin.

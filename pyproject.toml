@@ -7,12 +7,16 @@ requires-python = ">=3.12"
 dependencies = []
 
 [dependency-groups]
-# Installé par défaut avec `uv sync`.
+# Le serveur MCP (`python -m upea mcp`), facultatif : le compilateur n'en dépend pas.
+# Seul : `uv sync --no-dev --group mcp`.
+mcp = ["mcp>=2.3,<3"]
+# Installé par défaut avec `uv sync` ; comprend le SDK MCP, pour les tests et mypy.
 dev = [
     "pytest>=8.3",
     "mypy>=1.13",
     "ruff>=0.8",
     "hypothesis>=6.170.14",
+    { include-group = "mcp" },
 ]
 
 [tool.uv]

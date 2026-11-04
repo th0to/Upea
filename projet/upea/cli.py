@@ -1,4 +1,4 @@
-"""La ligne de commande : `python -m upea run|transpile|check|fmt|repl`."""
+"""La ligne de commande : `python -m upea run|transpile|check|fmt|repl|mcp`."""
 
 from __future__ import annotations
 
@@ -169,6 +169,25 @@ def commande_repl(args: argparse.Namespace) -> int:
         print(reponse.sortie, end="")
 
 
+#: Les modules dont l'absence signifie « le SDK MCP n'est pas installé ».
+MODULES_DU_SDK = frozenset({"mcp", "mcp_types", "pydantic"})
+
+
+def commande_mcp(args: argparse.Namespace) -> int:
+    try:
+        from .serveur_mcp import lancer
+    except ModuleNotFoundError as absent:
+        if (absent.name or "").partition(".")[0] not in MODULES_DU_SDK:
+            raise
+        _erreur(
+            "upea : le serveur MCP demande le SDK Python `mcp` (version 2), "
+            "absent de cet environnement.\n"
+            "  Pour l'installer, depuis la racine du dépôt : uv sync --group mcp"
+        )
+        return ERREUR_USAGE
+    return lancer()
+
+
 def construire_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="upea",
@@ -233,6 +252,17 @@ def construire_parser() -> argparse.ArgumentParser:
     session = sous.add_parser("repl", help="session interactive")
     sans_types(session)
     session.set_defaults(action=commande_repl)
+
+    serveur = sous.add_parser(
+        "mcp",
+        help="serveur MCP en stdio, pour qu'une IA écrive et vérifie de l'Upea",
+        description=(
+            "Serveur MCP (Model Context Protocol) en stdio : la spécification, les "
+            "exemples, et les outils verifier, executer, transpiler et formater. "
+            "Demande le SDK `mcp` : uv sync --group mcp."
+        ),
+    )
+    serveur.set_defaults(action=commande_mcp)
     return parser
 
 

@@ -42,6 +42,7 @@ uv run python -m upea transpile exemples/02_fibonacci.upea -o fibo.py --prelude 
 uv run python -m upea check exemples/06_tahua.upea
 uv run python -m upea fmt exemples/04_tumu.upea
 uv run python -m upea repl
+uv run python -m upea mcp            # serveur MCP en stdio (SDK : groupe `mcp`, inclus dans `dev`)
 ```
 
 ## Avancement
@@ -65,8 +66,7 @@ uv run python -m upea repl
 | 15 algorithmes | fait : parcours, hauteur, diamètre, ancêtre commun… sur toutes les sortes d'arbres ; Dijkstra, Bellman-Ford, Floyd-Warshall, Kahn, Tarjan, biparti, Prim, Kruskal, Edmonds-Karp | `execution/vues.py`, `algorithmes_arbres.py`, `algorithmes_graphes.py` | `test_extension_15_*` |
 | 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
 | 17 propriétés | fait (`hypothesis`) : formater est idempotent et garde le sens, relire `parau` redonne une valeur égale, les deux backends font la même chose, sur des programmes et des valeurs tirés au hasard | `tests/generateurs.py` | `test_extension_17_*` |
-
-Le serveur MCP n'est pas commencé.
+| 18 serveur MCP | en cours ([`PLAN_MCP.md`](PLAN_MCP.md)) : `python -m upea mcp` en stdio ; sans le SDK, un message et le code 2 | `serveur_mcp.py`, `cli.py` | `test_extension_18_*` |
 
 ## Outils Python mobilisés (refactorisation)
 
