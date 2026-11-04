@@ -45,6 +45,7 @@ class Predefinie:
     minimum: int
     maximum: int | None  # None : autant qu'on veut
     typer: Typeur
+    texte: str  # la signature lisible : `pihai(upea[T], T) -> tapura[T]`
 
     def arite(self) -> str:
         """« 1 argument », « 3 ou 4 arguments », « au moins 1 argument »."""
@@ -61,15 +62,20 @@ class Predefinie:
 
 PREDEFINIES: dict[str, Predefinie] = {}
 
+#: Les sortes abrégées dans les signatures, et ce qu'elles recouvrent :
+#: `arbre[T]` vaut `tumu[T] | imi[T] | …`. Rempli par `lie`.
+ABREVIATIONS: dict[str, str] = {}
+
 
 def predefinie(
-    nom: str, minimum: int, maximum: int | None = -1
+    nom: str, minimum: int, maximum: int | None = -1, *, texte: str
 ) -> Callable[[Typeur], Typeur]:
-    """Enregistre un typeur écrit à la main (maximum par défaut = minimum)."""
+    """Enregistre un typeur écrit à la main (maximum par défaut = minimum) ; `texte`
+    est sa signature lisible, que rien ne permet de calculer."""
 
     def enregistrer(typer: Typeur) -> Typeur:
         PREDEFINIES[nom] = Predefinie(
-            nom, minimum, minimum if maximum == -1 else maximum, typer
+            nom, minimum, minimum if maximum == -1 else maximum, typer, texte
         )
         return typer
 
@@ -86,12 +92,27 @@ class Liaison:
     element: Type = field(default=INCONNU)
 
 
-#: Vérifie un argument ; rend un message d'erreur, ou `None` s'il convient.
-type Patron = Callable[[Type, Liaison], str | None]
+@dataclass(frozen=True, slots=True)
+class Patron:
+    """Vérifie un argument ; rend un message d'erreur, ou `None` s'il convient.
+
+    `texte` décrit l'argument dans la signature lisible (`upea[T]`, `T`…).
+    """
+
+    texte: str
+    verifier: Callable[[Type, Liaison], str | None]
+
+    def __call__(self, recu: Type, liaison: Liaison) -> str | None:
+        return self.verifier(recu, liaison)
 
 
-def lie(noms: tuple[NomCompose, ...], description: str) -> Patron:
-    """Un patron qui accepte les sortes `noms` et lie leur paramètre à `T`."""
+def lie(
+    noms: tuple[NomCompose, ...], description: str, abrege: str | None = None
+) -> Patron:
+    """Un patron qui accepte les sortes `noms` et lie leur paramètre à `T`.
+
+    Dans les signatures, plusieurs sortes s'écrivent sous le nom `abrege`.
+    """
 
     def patron(recu: Type, liaison: Liaison) -> str | None:
         contenu = element_de(recu, noms)
@@ -100,21 +121,32 @@ def lie(noms: tuple[NomCompose, ...], description: str) -> Patron:
         liaison.element = contenu
         return None
 
-    return patron
+    texte = f"{abrege or noms[0]}[T]"
+    if len(noms) > 1:
+        ABREVIATIONS[texte] = " | ".join(f"{nom}[T]" for nom in noms)
+    return Patron(texte, patron)
 
 
 def comme_t(description: str) -> Patron:
     """Un patron qui exige une valeur compatible avec le `T` déjà lié."""
-    return lambda recu, liaison: (
-        None
-        if compatible(liaison.element, recu)
-        else f"{description} {liaison.element} attendu, {recu} reçu"
+    return Patron(
+        "T",
+        lambda recu, liaison: (
+            None
+            if compatible(liaison.element, recu)
+            else f"{description} {liaison.element} attendu, {recu} reçu"
+        ),
     )
 
 
-def si(condition: Callable[[Type], bool], message: Callable[[Type], str]) -> Patron:
+def si(
+    condition: Callable[[Type], bool], message: Callable[[Type], str], texte: str
+) -> Patron:
     """Un patron qui accepte les types vérifiant `condition`."""
-    return lambda recu, _: None if condition(recu) or recu is INCONNU else message(recu)
+    return Patron(
+        texte,
+        lambda recu, _: None if condition(recu) or recu is INCONNU else message(recu),
+    )
 
 
 _LISTE_OU_ORDONNE: tuple[NomCompose, ...] = ("tapura", *ORDONNES)
@@ -122,18 +154,18 @@ _RETIRABLES: tuple[NomCompose, ...] = ("tapura", "upea", *ORDONNES)
 _STRUCTURES: tuple[NomCompose, ...] = ("upea", *ARBRES)
 
 GRAPHE = lie(("upea",), "upea")
-ARBRE = lie(ARBRES, "arbre")
-ORDONNE = lie(ORDONNES, "arbre ordonné (imi, aifaito, uteere, pupu, ahu)")
-COLLECTION = lie(_LISTE_OU_ORDONNE, "tapura ou arbre ordonné")
-RETIRABLE = lie(_RETIRABLES, "tapura, upea ou arbre ordonné")
-STRUCTURE = lie(_STRUCTURES, "arbre ou upea")
+ARBRE = lie(ARBRES, "arbre", "arbre")
+ORDONNE = lie(ORDONNES, "arbre ordonné (imi, aifaito, uteere, pupu, ahu)", "ordonne")
+COLLECTION = lie(_LISTE_OU_ORDONNE, "tapura ou arbre ordonné", "collection")
+RETIRABLE = lie(_RETIRABLES, "tapura, upea ou arbre ordonné", "retirable")
+STRUCTURE = lie(_STRUCTURES, "arbre ou upea", "structure")
 NOEUD = comme_t("nœud")
 VALEUR = comme_t("élément")
-NOMBRE = si(est_nombre, lambda t: f"le poids doit être un nombre, pas un {t}")
-
-
-def TOUT(recu: Type, liaison: Liaison) -> None:
-    """Un patron qui accepte tout."""
+NOMBRE = si(
+    est_nombre, lambda t: f"le poids doit être un nombre, pas un {t}", "numera | tuhaa"
+)
+#: Un patron qui accepte tout.
+TOUT = Patron("?", lambda recu, liaison: None)
 
 
 def signature(
@@ -148,7 +180,19 @@ def signature(
                 signaler(i, f"{nom} : {message}")
         return retour(liaison.element)
 
-    PREDEFINIES[nom] = Predefinie(nom, len(patrons) - optionnels, len(patrons), typer)
+    minimum = len(patrons) - optionnels
+    obligatoires = ", ".join(p.texte for p in patrons[:minimum])
+    facultatifs = "".join(f"[, {p.texte}" for p in patrons[minimum:]) + "]" * optionnels
+    texte = f"{nom}({obligatoires}{facultatifs}) -> {_retour_lisible(retour)}"
+    PREDEFINIES[nom] = Predefinie(nom, minimum, len(patrons), typer, texte)
+
+
+def _retour_lisible(retour: Callable[[Type], Type]) -> str:
+    """Le type de retour, sondé : `T` là où il dépend du type lié par les patrons,
+    `?` s'il est inconnu du vérificateur."""
+    if retour(NUMERA) == retour(PARAU):  # ne dépend pas de T
+        return str(retour(INCONNU))
+    return str(retour(INCONNU)).replace(str(INCONNU), "T")
 
 
 def fixe(resultat: Type) -> Callable[[Type], Type]:
@@ -163,7 +207,7 @@ def identite(t: Type) -> Type:
 # --- Les fonctions écrites à la main ------------------------------------------------
 
 
-@predefinie("roa", 1)
+@predefinie("roa", 1, texte="roa(tapura[T] | parau | upea[T] | arbre[T]) -> numera")
 def _roa(args: tuple[Type, ...], signaler: Signaler) -> Type:
     t = args[0]
     if not (t in (PARAU, INCONNU) or isinstance(t, Compose)):
@@ -174,12 +218,16 @@ def _roa(args: tuple[Type, ...], signaler: Signaler) -> Type:
 def _conversion(nom: str, resultat: Base, acceptes: tuple[Base, ...]) -> None:
     signature(
         nom,
-        si(lambda t: t in acceptes, lambda t: f"impossible de convertir un {t}"),
+        si(
+            lambda t: t in acceptes,
+            lambda t: f"impossible de convertir un {t}",
+            " | ".join(map(str, acceptes)),
+        ),
         retour=fixe(resultat),
     )
 
 
-@predefinie("tumu", 1, None)
+@predefinie("tumu", 1, None, texte="tumu(T[, tumu[T]...]) -> tumu[T]")
 def _tumu(args: tuple[Type, ...], signaler: Signaler) -> Type:
     valeurs = [args[0]]
     for i, enfant in enumerate(args[1:], start=1):
