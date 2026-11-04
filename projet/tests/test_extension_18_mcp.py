@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from mcp import Client
+from mcp import Client, StdioServerParameters
 from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolResult, TextContent, TextResourceContents
 
-from outils import EXEMPLES, LISTE_EXEMPLES, PROJET, lire
+from outils import EXEMPLES, LISTE_EXEMPLES, PROJET, lancer, lire
 from upea import atelier, bac_a_sable
 from upea.bac_a_sable import Execution
 from upea.cli import ERREUR_USAGE, OK, main
@@ -72,7 +72,7 @@ PATIENCE = 60
 
 def dialoguer(
     commande: list[str], messages: list[dict[str, object]]
-) -> tuple[list[dict[str, object]], str]:
+) -> tuple[list[dict[str, Any]], str]:
     """Envoie `messages` à un serveur lancé en stdio, attend la réponse à chaque
     requête, puis ferme son entrée et attend sa fin.
 
@@ -106,7 +106,7 @@ def dialoguer(
     ]
     for lecteur in lecteurs:
         lecteur.start()
-    recus: list[dict[str, object]] = []
+    recus: list[dict[str, Any]] = []
     try:
         for message in messages:
             serveur.stdin.write(json.dumps(message).encode("utf-8") + b"\n")
@@ -542,3 +542,60 @@ async def test_traduire_depuis_python(client: Client) -> None:
         "a < b ma b < c",
     ):
         assert attendu in texte_du_prompt
+
+
+# --- De bout en bout : le vrai serveur, en stdio --------------------------------------
+
+
+def appel_d_outil(
+    identifiant: int, outil: str, arguments: dict[str, object]
+) -> dict[str, object]:
+    return {
+        "jsonrpc": "2.0",
+        "id": identifiant,
+        "method": "tools/call",
+        "params": {"name": outil, "arguments": arguments},
+    }
+
+
+def test_de_bout_en_bout_en_json_rpc() -> None:
+    """`initialize`, puis deux appels d'outil : stdout ne porte que les trois
+    réponses, et la sortie du programme exécuté n'y passe que dans son résultat."""
+    programme = 'faaite "île ʻōmuamua";\nfaaite aifaito [2, 1, 3];\n'
+    recus, _ = dialoguer(
+        [sys.executable, "-m", "upea", "mcp"],
+        [
+            INITIALISER,
+            INITIALISE,
+            appel_d_outil(2, "executer", {"source": programme}),
+            appel_d_outil(3, "verifier", {"source": "faaite y;"}),
+        ],
+    )
+    reponses = {r["id"]: r for r in recus}
+    assert len(recus) == len(reponses) == 3  # ni notification, ni journal
+    assert sorted(reponses) == [1, 2, 3]
+    execution = reponses[2]["result"]
+    assert not execution["isError"]
+    assert execution["structuredContent"]["statut"] == "succes"
+    assert execution["structuredContent"]["sortie"] == lancer(programme)
+    verification = reponses[3]["result"]
+    assert not verification["isError"]
+    assert not verification["structuredContent"]["valide"]
+
+
+@pytest.mark.anyio
+async def test_de_bout_en_bout_avec_le_client_du_sdk() -> None:
+    """Le client du SDK lance le serveur, et négocie la révision la plus récente du
+    protocole."""
+    parametres = StdioServerParameters(
+        command=sys.executable, args=["-m", "upea", "mcp"], cwd=PROJET
+    )
+    async with Client(parametres) as client:
+        assert client.protocol_version == "2026-07-28"
+        outils = {outil.name for outil in (await client.list_tools()).tools}
+        assert outils == {"verifier", "formater", "transpiler", "executer"}
+        resultat = await client.call_tool("executer", {"source": "faaite 6 * 7;"})
+        assert resultat.structured_content is not None
+        assert resultat.structured_content["sortie"] == "42\n"
+        exemple = await lire_ressource(client, "upea://exemples/01_ia_ora_na")
+        assert lire(EXEMPLES / "01_ia_ora_na.upea") in exemple
