@@ -109,9 +109,20 @@ def _pluriel(n: int, mot: str) -> str:
 
 
 def toujours_retourne(instructions: tuple[Instr, ...]) -> bool:
-    """Vrai si la suite d'instructions se termine par un `hoi` sur tous les chemins."""
+    """Vrai si la suite d'instructions se termine par un `hoi` sur tous les chemins.
+
+    Une boucle `tamau tia` sans `faaea` qui la quitte ne se termine jamais d'elle-même :
+    on n'en sort que par un `hoi` (ou une erreur), elle compte donc comme un retour.
+    """
     for instruction in instructions:
         if isinstance(instruction, Retour):
+            return True
+        if (
+            isinstance(instruction, TantQue)
+            and isinstance(instruction.condition, Booleen)
+            and instruction.condition.valeur
+            and not quitte_la_boucle(instruction.corps.instructions)
+        ):
             return True
         if (
             isinstance(instruction, Si)
@@ -122,6 +133,20 @@ def toujours_retourne(instructions: tuple[Instr, ...]) -> bool:
             and toujours_retourne(instruction.sinon.instructions)
         ):
             return True
+    return False
+
+
+def quitte_la_boucle(instructions: tuple[Instr, ...]) -> bool:
+    """Vrai si un `faaea` de ces instructions quitte la boucle qui les contient :
+    ceux des boucles imbriquées ne quittent que celles-ci."""
+    for instruction in instructions:
+        match instruction:
+            case Rupture("faaea"):
+                return True
+            case Si(branches, sinon):
+                blocs = [b.corps for b in branches] + ([] if sinon is None else [sinon])
+                if any(quitte_la_boucle(bloc.instructions) for bloc in blocs):
+                    return True
     return False
 
 

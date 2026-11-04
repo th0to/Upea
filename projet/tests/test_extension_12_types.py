@@ -302,3 +302,50 @@ def test_les_annotations_sont_reportees_dans_le_python_genere() -> None:
     )
     code = transpiler(source).code
     assert "def f(a: list, t: _Tumu, g: _Upea, x) -> bool:" in code
+
+
+# --- Renvoyer sur tous les chemins ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("source", "sortie"),
+    [
+        ("ohipa f() -> numera { tamau tia { hoi 1; } }\nfaaite f();", "1"),
+        # Le faaea quitte la boucle intérieure, pas celle de `tamau tia`.
+        (
+            "ohipa f() -> numera {\n    tamau tia { tamau tia { faaea; } hoi 2; }\n}\n"
+            "faaite f();",
+            "2",
+        ),
+        (
+            "ohipa f() -> numera {\n"
+            "    tamau tia { tataitahi i roto 0..3 { faaea; } hoi 3; }\n}\n"
+            "faaite f();",
+            "3",
+        ),
+        (
+            "tuu n = 0;\nohipa f() -> numera {\n"
+            "    tamau tia { n = n + 1; ahani n < 3 { haere; } hoi n; }\n}\n"
+            "faaite f();",
+            "3",
+        ),
+    ],
+)
+def test_une_boucle_tamau_tia_sans_faaea_ne_se_termine_jamais(
+    source: str, sortie: str
+) -> None:
+    assert lancer(source) == sortie + "\n"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "ohipa f() -> numera { tamau tia { faaea; } }",
+        "ohipa f() -> numera { tamau tia { ahani hape { faaea; } hoi 1; } }",
+        "ohipa f() -> numera { tamau tia { ahani tia { } taae { faaea; } } }",
+        # Seul le littéral `tia` dit que la boucle ne s'arrête pas d'elle-même.
+        "ohipa f() -> numera { tamau 1 == 1 { hoi 1; } }",
+    ],
+)
+def test_une_boucle_qui_peut_s_arreter_ne_renvoie_pas_toujours(source: str) -> None:
+    assert "peut se terminer sans 'hoi'" in une_erreur(source).message
