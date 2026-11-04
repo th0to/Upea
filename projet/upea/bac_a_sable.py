@@ -32,6 +32,9 @@ from .erreurs import ErreurExecution, ErreursMultiples, ErreurUpea
 DELAI = 5.0
 #: Ce qu'on garde au plus de la sortie d'un programme (en octets UTF-8).
 PLAFOND = 64 * 1024
+#: La mémoire d'un programme, interpréteur compris (en octets) : sans plafond, un
+#: texte doublé à chaque tour occupe plusieurs Go avant la fin du délai.
+PLAFOND_MEMOIRE = 512 * 1024**2
 #: Ce que l'on garde au plus de la sortie d'erreur d'un enfant en panne.
 FIN_DES_ERREURS = 2000
 
@@ -84,6 +87,7 @@ def executer(
     backend: str = "python",
     delai: float = DELAI,
     plafond: int = PLAFOND,
+    memoire: int = PLAFOND_MEMOIRE,
 ) -> Execution:
     """Exécute `source` dans un sous-processus.
 
@@ -99,6 +103,7 @@ def executer(
         "types": types,
         "backend": backend,
         "plafond": plafond,
+        "memoire": memoire,
         "marqueur": marqueur.decode("ascii"),
     }
     enfant = subprocess.Popen(
@@ -194,8 +199,83 @@ class _SortiePlafonnee(io.TextIOBase):
         return len(texte)
 
 
+def _plafonner_la_memoire(octets: int) -> bool:
+    """Borne la mémoire de ce processus : au-delà, une allocation lève `MemoryError`.
+
+    Rend `False` si la plateforme ne le permet pas (le programme tourne alors sans
+    plafond de mémoire).
+    """
+    if sys.platform == "win32":
+        return _job_windows(octets)
+    elif sys.platform == "linux":
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_AS, (octets, octets))
+        return True
+    else:  # macOS n'applique pas RLIMIT_AS
+        return False
+
+
+def _job_windows(octets: int) -> bool:
+    """Place ce processus dans un *job object* qui limite sa mémoire."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Limites(ctypes.Structure):  # JOBOBJECT_BASIC_LIMIT_INFORMATION
+        _fields_ = [
+            ("PerProcessUserTimeLimit", ctypes.c_int64),
+            ("PerJobUserTimeLimit", ctypes.c_int64),
+            ("LimitFlags", wintypes.DWORD),
+            ("MinimumWorkingSetSize", ctypes.c_size_t),
+            ("MaximumWorkingSetSize", ctypes.c_size_t),
+            ("ActiveProcessLimit", wintypes.DWORD),
+            ("Affinity", ctypes.c_size_t),
+            ("PriorityClass", wintypes.DWORD),
+            ("SchedulingClass", wintypes.DWORD),
+        ]
+
+    class LimitesEtendues(ctypes.Structure):  # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        _fields_ = [
+            ("Basic", Limites),
+            ("IoInfo", ctypes.c_uint64 * 6),  # IO_COUNTERS
+            ("ProcessMemoryLimit", ctypes.c_size_t),
+            ("JobMemoryLimit", ctypes.c_size_t),
+            ("PeakProcessMemoryUsed", ctypes.c_size_t),
+            ("PeakJobMemoryUsed", ctypes.c_size_t),
+        ]
+
+    job_object_limit_process_memory = 0x100
+    job_object_extended_limit_information = 9
+    poignee = wintypes.HANDLE
+    noyau = ctypes.WinDLL("kernel32", use_last_error=True)
+    noyau.CreateJobObjectW.restype = poignee
+    noyau.GetCurrentProcess.restype = poignee  # une pseudo-poignée : -1
+    noyau.SetInformationJobObject.argtypes = [
+        poignee,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    ]
+    noyau.AssignProcessToJobObject.argtypes = [poignee, poignee]
+    limites = LimitesEtendues()
+    limites.Basic.LimitFlags = job_object_limit_process_memory
+    limites.ProcessMemoryLimit = octets
+    # La poignée du job reste ouverte jusqu'à la fin du processus.
+    job = noyau.CreateJobObjectW(None, None)
+    return bool(
+        job
+        and noyau.SetInformationJobObject(
+            job,
+            job_object_extended_limit_information,
+            ctypes.byref(limites),
+            ctypes.sizeof(limites),
+        )
+        and noyau.AssignProcessToJobObject(job, noyau.GetCurrentProcess())
+    )
+
+
 def _executer_ici(
-    source: str, types: bool, backend: str
+    source: str, types: bool, backend: str, memoire: int
 ) -> tuple[Statut, int, list[ErreurUpea]]:
     """Exécute le programme dans ce processus : son statut, le code de retour de la
     CLI, et ses avertissements et erreurs."""
@@ -208,6 +288,11 @@ def _executer_ici(
     try:
         compilateur.executer(source, backend, types=types)
     except ErreurExecution as erreur:
+        if isinstance(erreur.__cause__, MemoryError):
+            erreur = ErreurExecution(
+                f"mémoire dépassée : un programme a au plus {memoire // 1024**2} Mo",
+                erreur.position,
+            )
         return "erreur_execution", 3, [*signales, erreur]
     return "succes", 0, signales
 
@@ -215,11 +300,15 @@ def _executer_ici(
 def _enfant() -> int:
     requete = json.loads(sys.stdin.buffer.read())
     sys.stdin.close()
+    if not _plafonner_la_memoire(requete["memoire"]):
+        print("upea : pas de plafond de mémoire sur ce système", file=sys.stderr)
     canal = sys.stdout.buffer
     sortie = _SortiePlafonnee(canal, requete["plafond"])
     sys.stdout = sortie
     source = requete["source"]
-    statut, code, signales = _executer_ici(source, requete["types"], requete["backend"])
+    statut, code, signales = _executer_ici(
+        source, requete["types"], requete["backend"], requete["memoire"]
+    )
     texte = rapport(signales, source)
     if sortie.tronquee:
         texte += (

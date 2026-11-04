@@ -8,7 +8,13 @@ import pytest
 from outils import EXEMPLES, lancer, lire
 from upea import bac_a_sable
 from upea.atelier import Diagnostic
-from upea.bac_a_sable import PLAFOND, DelaiDepasse, EnfantEnPanne, executer
+from upea.bac_a_sable import (
+    PLAFOND,
+    PLAFOND_MEMOIRE,
+    DelaiDepasse,
+    EnfantEnPanne,
+    executer,
+)
 
 
 def test_un_exemple_donne_sa_sortie_attendue() -> None:
@@ -114,6 +120,25 @@ def test_le_programme_ne_peut_pas_imiter_le_resultat() -> None:
     resultat = executer(f'faaite "{faux}";\nfaaite 1 / 0;\n')
     assert resultat.statut == "erreur_execution"
     assert resultat.sortie == '{"statut": "succes", "code_retour": 0}\n'
+
+
+@pytest.mark.skipif(
+    sys.platform not in ("win32", "linux"), reason="pas de plafond de mémoire ici"
+)
+@pytest.mark.parametrize("valeur", ['"x"', "[0]"], ids=["parau", "tapura"])
+def test_la_memoire_est_plafonnee(valeur: str) -> None:
+    """Sans plafond, ces programmes occupent plusieurs Go avant la fin du délai."""
+    source = f"tuu v = {valeur};\ntamau tia {{\n    v = v + v;\n}}\n"
+    resultat = executer(source, memoire=PLAFOND_MEMOIRE)
+    assert resultat.statut == "erreur_execution"
+    [erreur] = resultat.diagnostics
+    assert erreur.ligne == 3
+    assert erreur.message == "mémoire dépassée : un programme a au plus 512 Mo"
+
+
+def test_un_programme_raisonnable_tient_sous_le_plafond() -> None:
+    source = "tuu l = [];\ntataitahi i roto 0..1000000 { amui(l, i); }\nfaaite roa(l);"
+    assert executer(source, memoire=PLAFOND_MEMOIRE).sortie == "1000000\n"
 
 
 def test_un_enfant_en_panne(monkeypatch: pytest.MonkeyPatch) -> None:
