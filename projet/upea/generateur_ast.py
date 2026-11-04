@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import ast
 import warnings
+from functools import cache
 from itertools import chain
 from types import CodeType
 from typing import assert_never
@@ -305,20 +306,35 @@ class GenerateurAst:
         return ast.fix_missing_locations(ast.Module(body=corps, type_ignores=[]))
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
-        prelude = ast.parse(PRELUDE)
+        prelude = _texte_prelude()
         utilisateur = self.module(programme, analyse)
-        complet = ast.Module(body=[*prelude.body, *utilisateur.body], type_ignores=[])
-        code = ast.unparse(complet) + "\n"
-        # Le texte produit n'a plus les numéros de ligne d'Upea : on le relit, et
-        # l'on apparie ses instructions à celles de l'arbre d'origine.
-        relu = ast.parse(code)
+        # Le programme tel qu'`ast.unparse` l'écrirait à la suite du prélude.
+        suite = "".join(_avant(i) + ast.unparse(i) for i in utilisateur.body)
+        # Le texte produit n'a plus les numéros de ligne d'Upea : on relit le
+        # programme seul, et l'on apparie ses instructions à celles de l'arbre
+        # d'origine, en comptant les lignes du prélude.
+        decalage = prelude.count("\n")
+        relu = ast.parse(suite)
         lignes: dict[int, int] = {}
-        debut = len(prelude.body)
-        for original, nouveau in zip(utilisateur.body, relu.body[debut:], strict=True):
+        for original, nouveau in zip(utilisateur.body, relu.body, strict=True):
             for a, b in zip(ast.walk(original), ast.walk(nouveau), strict=True):
                 if isinstance(a, ast.stmt) and isinstance(b, ast.stmt):
-                    lignes.setdefault(b.lineno, a.lineno)
-        return Sortie(code, SourceMap(lignes=lignes))
+                    lignes.setdefault(b.lineno + decalage, a.lineno)
+        return Sortie(prelude + suite + "\n", SourceMap(lignes=lignes))
+
+
+@cache
+def _texte_prelude() -> str:
+    """Le prélude tel que l'écrit `ast.unparse`, calculé une seule fois (l'analyser
+    et le réécrire coûte une cinquantaine de millisecondes). On garde un texte, et
+    non des nœuds : aucune génération ne peut modifier ce qui est en cache."""
+    return ast.unparse(ast.parse(PRELUDE))
+
+
+def _avant(instruction: ast.stmt) -> str:
+    """Ce qui précède une instruction de premier niveau dans le texte
+    d'`ast.unparse` : un saut de ligne, et une ligne vide avant une fonction."""
+    return "\n\n" if isinstance(instruction, ast.FunctionDef) else "\n"
 
 
 def compiler_module(module: ast.Module | str, nom_fichier: str) -> CodeType:

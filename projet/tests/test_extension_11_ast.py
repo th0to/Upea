@@ -1,6 +1,7 @@
 """Extension 11 : la génération via le module `ast` et `ast.unparse`."""
 
 import ast
+import time
 import warnings
 from pathlib import Path
 from types import CodeType
@@ -11,6 +12,7 @@ from outils import EXEMPLES, lancer, lire
 from upea.compilateur import NOM_FICHIER, compiler, executer_arbre, transpiler
 from upea.erreurs import ErreurExecution
 from upea.generateur_ast import GenerateurAst, compiler_module
+from upea.prelude import PRELUDE
 
 
 def module_de(source: str) -> ast.Module:
@@ -107,6 +109,67 @@ def test_le_texte_produit_se_relit_avec_la_meme_structure(exemple: Path) -> None
     module = module_de(lire(exemple))
     relu = ast.parse(ast.unparse(module))
     assert ast.dump(relu) == ast.dump(module)
+
+
+# --- Le prélude en cache --------------------------------------------------------------
+
+
+def generer_sans_cache(source: str) -> tuple[str, dict[int, int]]:
+    """Le code et la correspondance des lignes, tout recalculé : prélude analysé,
+    réécrit et relu avec le programme. C'est la référence du cache."""
+    compilation = compiler(source, types=False)
+    prelude = ast.parse(PRELUDE)
+    utilisateur = GenerateurAst().module(compilation.programme, compilation.analyse)
+    complet = ast.Module(body=[*prelude.body, *utilisateur.body], type_ignores=[])
+    code = ast.unparse(complet) + "\n"
+    relu = ast.parse(code).body[len(prelude.body) :]
+    lignes: dict[int, int] = {}
+    for original, nouveau in zip(utilisateur.body, relu, strict=True):
+        for a, b in zip(ast.walk(original), ast.walk(nouveau), strict=True):
+            if isinstance(a, ast.stmt) and isinstance(b, ast.stmt):
+                lignes.setdefault(b.lineno, a.lineno)
+    return code, lignes
+
+
+def genere(source: str) -> tuple[str, dict[int, int]]:
+    sortie = transpiler(source, "ast", types=False)
+    return sortie.code, sortie.sourcemap.lignes
+
+
+#: Des débuts de programme où le texte du programme seul se distinguerait de sa
+#: place après le prélude : une fonction (précédée d'une ligne vide), un texte seul
+#: (qu'`ast.unparse` écrirait comme une docstring en tête de module).
+DEBUTS = [
+    "ohipa f(n) {\n    hoi n + 1;\n}\nfaaite f(1);",
+    '"abc";\nfaaite 1;',
+    "tuu x = 1;\nohipa g() { }\ng();",
+]
+
+
+@pytest.mark.parametrize("source", DEBUTS)
+def test_le_cache_du_prelude_donne_le_meme_code(source: str) -> None:
+    assert genere(source) == generer_sans_cache(source)
+
+
+def test_le_cache_du_prelude_donne_le_meme_code_pour_les_exemples(
+    exemple: Path,
+) -> None:
+    assert genere(lire(exemple)) == generer_sans_cache(lire(exemple))
+
+
+def test_generer_deux_fois_puis_un_autre_programme() -> None:
+    a, b = lire(EXEMPLES / "02_fibonacci.upea"), lire(EXEMPLES / "04_tumu.upea")
+    premiere, seconde, autre = genere(a), genere(a), genere(b)
+    assert premiere == seconde == generer_sans_cache(a)
+    assert autre == generer_sans_cache(b)
+    assert lancer(a, "ast") == lire(EXEMPLES / "02_fibonacci.attendu")
+
+
+def test_generer_avec_le_backend_ast_ne_refait_pas_le_prelude() -> None:
+    genere("faaite 1;")  # la première fois remplit le cache
+    debut = time.perf_counter()
+    genere("faaite 2;")
+    assert time.perf_counter() - debut < 0.02  # 85 ms sans cache
 
 
 def test_le_texte_complet_contient_le_prelude() -> None:
