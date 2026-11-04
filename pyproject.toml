@@ -2,7 +2,7 @@
 name = "upea"
 version = "0.1.0"
 description = "Upea : un langage aux mots-clés tahitiens, centré sur les arbres et les graphes, transpilé en Python"
-readme = "NOTES.md"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
