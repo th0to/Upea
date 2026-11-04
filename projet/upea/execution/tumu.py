@@ -44,11 +44,21 @@ class _Tumu:
         self._amaa = branches
 
     def __eq__(self, autre: object) -> bool:
-        return (
-            isinstance(autre, _Tumu)
-            and self.hotu == autre.hotu
-            and self.amaa == autre.amaa
-        )
+        """Mêmes valeurs, mêmes enfants dans le même ordre. Une pile explicite, et non
+        la récursion de `list.__eq__`, pour qu'un arbre profond se compare aussi."""
+        pile: list[tuple[_Tumu, object]] = [(self, autre)]
+        while pile:
+            a, b = pile.pop()
+            if a is b:
+                continue
+            if (
+                not isinstance(b, _Tumu)
+                or len(a.amaa) != len(b.amaa)
+                or a.hotu != b.hotu
+            ):
+                return False
+            pile.extend(zip(a.amaa, b.amaa, strict=True))
+        return True
 
     def __contains__(self, valeur: object) -> bool:
         pile = [self]
@@ -136,6 +146,17 @@ def _tumu(hotu: object, *enfants: object) -> _Tumu:
 @_texte.register(_Tumu)
 @_une_fois
 def _(valeur: _Tumu, imbrique: bool = False) -> str:
-    morceaux = [_texte(valeur.hotu, True)]
-    morceaux.extend(_texte(enfant, True) for enfant in valeur.amaa)
-    return "tumu(" + ", ".join(morceaux) + ")"
+    """`tumu(1, tumu(2), …)`, écrit avec une pile explicite : un arbre profond
+    s'écrit aussi. Seules les valeurs (`hotu`) repassent par `_texte`."""
+    morceaux: list[str] = []
+    pile: list[_Tumu | str] = [valeur]
+    while pile:
+        element = pile.pop()
+        if isinstance(element, str):
+            morceaux.append(element)
+            continue
+        morceaux.append("tumu(" + _texte(element.hotu, True))
+        pile.append(")")
+        for enfant in reversed(element.amaa):
+            pile.extend((enfant, ", "))
+    return "".join(morceaux)

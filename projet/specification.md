@@ -519,4 +519,5 @@ Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible),
 - `ma` et `anei` sur des valeurs non booléennes suivent Python (`hape anei 3` vaut `3`), de même que `tia == 1` (vaut `tia`) : le vérificateur de types refuse ces mélanges quand il connaît les types.
 - Le formateur perd les commentaires, qui ne sont pas dans l'arbre syntaxique.
 - Les colonnes d'une erreur d'exécution ne sont pas connues : seule la ligne est indiquée.
+- Les arbres et les graphes, même profonds de plusieurs milliers de nœuds, se parcourent, se comparent et s'écrivent sans limite de profondeur. Les listes imbriquées sur plus d'un millier de niveaux (`[[[…]]]`), non : leur affichage et leur comparaison s'arrêtent sur « récursion trop profonde ».
 - Le fichier produit par `transpile` est autonome, mais brut : lancé par `python sortie.py`, il affiche ses erreurs d'exécution en traceback Python, et CPython peut y écrire ses propres avertissements (un `SyntaxWarning` pour `(3)[0]`, accepté avec `--sans-types`). Seuls `run` et le REPL traduisent les erreurs en termes d'Upea.

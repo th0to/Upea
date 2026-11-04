@@ -12,9 +12,10 @@ from upea.compilateur import TRADUCTIONS
 from upea.erreurs import ErreurExecution
 from upea.execution.algorithmes_arbres import _teitei
 from upea.execution.algorithmes_graphes import _ea
+from upea.execution.base import _texte
 from upea.execution.graphes import _graphe
 from upea.execution.predefinies import _roa
-from upea.execution.tumu import _tumu
+from upea.execution.tumu import _Tumu, _tumu
 from upea.noeuds import SorteCollection
 from upea.predefinies import PREDEFINIES
 from upea.prelude import MODULES, PRELUDE
@@ -364,6 +365,39 @@ def test_construire_un_grand_tumu_par_amui_reste_rapide(construction: str) -> No
     debut = time.perf_counter()
     assert lancer(CONSTRUCTIONS[construction]) == "3000\n"
     assert time.perf_counter() - debut < 1.0
+
+
+def chaine(profondeur: int) -> _Tumu:
+    """`tumu(n - 1, tumu(n - 2, … tumu(0)))` : un arbre profond de `n` nœuds."""
+    arbre = _tumu(0)
+    for i in range(1, profondeur):
+        arbre = _tumu(i, arbre)
+    return arbre
+
+
+def test_comparer_et_ecrire_un_arbre_profond_ne_sature_pas_la_pile() -> None:
+    assert chaine(5000) == chaine(5000)
+    assert chaine(5000) != chaine(4999)
+    attendu = "".join(f"tumu({i}, " for i in range(4999, 0, -1)) + "tumu(0" + ")" * 5000
+    assert _texte(chaine(5000)) == attendu
+
+
+def test_un_arbre_profond_se_compare_et_s_ecrit_dans_un_programme() -> None:
+    source = (
+        "tuu t = tumu(0);\ntuu u = tumu(0);\n"
+        "tataitahi i roto 1..3000 { t = tumu(i, t); u = tumu(i, u); }\n"
+        "faaite t == u, roa(parau(t)) > 3000;"
+    )
+    assert lancer(source) == "tia tia\n"
+
+
+def test_l_ordre_des_enfants_et_les_valeurs_comptent_toujours() -> None:
+    assert _tumu(1, _tumu(2), _tumu(3)) != _tumu(1, _tumu(3), _tumu(2))
+    assert _tumu(1, _tumu(2)) != _tumu(1, _tumu(2), _tumu(2))
+    assert _tumu([1, _tumu(2)]) == _tumu([1, _tumu(2)])
+    assert _texte(_tumu("a", _tumu(2), _tumu(3, _tumu(4)))) == (
+        'tumu("a", tumu(2), tumu(3, tumu(4)))'
+    )
 
 
 def test_le_parcours_d_un_arbre_profond_ne_sature_pas_la_pile() -> None:
