@@ -250,7 +250,10 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 ### Arbres (`tumu`)
 
 - `tumu(v)` est une feuille de valeur `v` ; `tumu(v, e1, e2, …)` un nœud dont les enfants sont `e1, e2…`, qui doivent être des arbres.
-- `t.hotu` (*hotu*, le fruit) est la valeur du nœud, `t.amaa` (*ʻamaʻa*, les branches) la liste de ses enfants. Ce sont les deux seuls champs : `t.taille` est une erreur sémantique. Les deux sont affectables (`t.hotu = 4;`), et `t.amaa` est une liste ordinaire (`amui(t.amaa, tumu(5));`).
+- `t.hotu` (*hotu*, le fruit) est la valeur du nœud, `t.amaa` (*ʻamaʻa*, les branches) la liste de ses enfants. Ce sont les deux seuls champs : `t.taille` est une erreur sémantique. Les deux sont affectables (`t.hotu = 4;`).
+- `t.amaa` est une tapura (`amui(t.amaa, tumu(5));`, `t.amaa[0] = tumu(6);`, `roa(t.amaa)`), mais **vérifiée** : elle n'accepte que des `tumu`, et l'erreur est signalée à la ligne de l'ajout.
+- `t.amaa = l;` **recopie** les éléments de `l`, après les avoir vérifiés : `l` n'est pas partagée avec l'arbre, et `amui(l, …)` ne change plus `t`.
+- Un `tumu` reste un **arbre fini** : un nœud ne peut pas devenir sa propre branche, même indirectement (`amui(t.amaa, t);` est une erreur d'exécution). Un même sous-arbre peut en revanche apparaître plusieurs fois (`tumu(1, f, f)`) : il est partagé, pas recopié, et `roa` le compte autant de fois qu'il apparaît.
 - `==` compare deux arbres par leur structure et leurs valeurs.
 - `v roto t` vaut `tia` si l'un des nœuds de `t` a la valeur `v`.
 
@@ -400,6 +403,9 @@ Le programme s'arrête, et l'utilisateur voit la **ligne Upea** en cause, jamais
 | `tataitahi x roto 5 { … }` | on ne peut pas parcourir un numera |
 | `faaite 1 roto 5;` | roto : on ne peut pas chercher dans un numera |
 | `x.hotu` (x n'est pas un arbre) | seul un tumu a les champs hotu et amaa |
+| `amui(t.amaa, 5)` | les branches d'un tumu doivent être des tumu, pas un numera |
+| `amui(t.amaa, t)` | un tumu ne peut pas devenir sa propre branche, même indirectement |
+| `amui(l, l); faaite l;` | tapura impossible à écrire : la valeur se contient elle-même |
 | récursion sans fin | récursion trop profonde |
 | `iriti(ahu [])` | iriti : le ahu est vide |
 | `amui(aifaito [1], "a")` | clés incomparables dans un aifaito : numera et parau |

@@ -109,6 +109,34 @@ def _echappe(texte: str) -> str:
     return '"' + texte.replace("\n", "\\n").replace("\t", "\\t") + '"'
 
 
+#: Les structures que `_texte` est en train d'écrire (par leur `id`).
+_EN_COURS: set[int] = set()
+
+
+def _une_fois[V](
+    ecrire: _Callable[[V, bool], str],
+) -> _Callable[[V, bool], str]:
+    """Décorateur des variantes de `_texte` qui écrivent une structure : une valeur
+    qui se contient elle-même donne une erreur claire, et non une récursion sans
+    fin. Une valeur simplement partagée (`[l, l]`) s'écrit normalement."""
+
+    @_wraps(ecrire)
+    def gardee(valeur: V, imbrique: bool = False) -> str:
+        cle = id(valeur)
+        if cle in _EN_COURS:
+            raise _Erreur(
+                f"{_sorte(valeur)} impossible à écrire : "
+                "la valeur se contient elle-même"
+            )
+        _EN_COURS.add(cle)
+        try:
+            return ecrire(valeur, imbrique)
+        finally:
+            _EN_COURS.discard(cle)
+
+    return gardee
+
+
 @_singledispatch
 def _texte(valeur: object, imbrique: bool = False) -> str:
     """Le texte d'une valeur, tel que l'affiche `faaite`.
@@ -142,6 +170,7 @@ def _(valeur: None, imbrique: bool = False) -> str:
 
 
 @_texte.register(list)
+@_une_fois
 def _(valeur: list[object], imbrique: bool = False) -> str:
     return "[" + ", ".join(_texte(e, True) for e in valeur) + "]"
 

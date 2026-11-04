@@ -137,6 +137,7 @@ SORTES = {
     "str": "parau",
     "bool": "tiahape",
     "NoneType": "aore",
+    "_Branches": "tapura",  # les enfants d'un tumu (`t.amaa`)
 } | {classe: sorte for sorte, classe in PYTHON_COMPOSES.items()}
 
 

@@ -3,6 +3,7 @@ graphes, fonctions prédéfinies, et erreurs d'exécution traduites."""
 
 import importlib
 import re
+import time
 
 import pytest
 
@@ -164,7 +165,7 @@ def test_le_prelude_fait_ce_que_dit_la_specification(source: str, sortie: str) -
         ("faaite 1 roto aore;", "roto : on ne peut pas chercher dans un aore", 1),
         ('faaite 1 roto "abc";', "roto : on ne cherche qu'un parau", 1),
         ("faaite tumu(1, 2);", "les enfants doivent être des tumu", 1),
-        ("tuu t = tumu(1);\nt.amaa = 3;\nfaaite roa(t);", "forment une tapura", 3),
+        ("tuu t = tumu(1);\nt.amaa = 3;\nfaaite roa(t);", "forment une tapura", 2),
         (
             "faaite amui(3, 1);",
             "amui : tapura ou arbre ordonné attendu, numera reçu",
@@ -246,6 +247,113 @@ def test_dijkstra_departage_les_egalites_dans_l_ordre_d_ajout() -> None:
         ]
     )
     assert _ea(graphe, "A", "D") == ["A", "B", "D"]
+
+
+# --- Un tumu reste un arbre -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("types", [True, False])
+@pytest.mark.parametrize(
+    ("source", "ligne"),
+    [
+        ("tuu t = tumu(1);\namui(t.amaa, t);", 2),
+        ("tuu a = tumu(1);\ntuu b = tumu(2, a);\namui(a.amaa, b);", 3),
+        ("tuu a = tumu(1, tumu(2));\ntuu b = tumu(3, a);\na.amaa[0] = b;", 3),
+        ("tuu a = tumu(1);\na.amaa = [tumu(2, a)];", 2),
+    ],
+)
+def test_un_tumu_ne_devient_pas_sa_propre_branche(
+    source: str, ligne: int, types: bool
+) -> None:
+    with pytest.raises(ErreurExecution) as info:
+        lancer(source, types=types)
+    assert "un tumu ne peut pas devenir sa propre branche" in info.value.message
+    assert info.value.position is not None
+    assert info.value.position.ligne == ligne
+
+
+@pytest.mark.parametrize(
+    ("source", "fragment"),
+    [
+        ("tuu t = tumu(1);\namui(t.amaa, 5);", "doivent être des tumu, pas un numera"),
+        ("tuu t = tumu(1);\nt.amaa = 5;", "forment une tapura, pas un numera"),
+        ("tuu t = tumu(1);\nt.amaa = [tumu(2), 3];", "doivent être des tumu"),
+    ],
+)
+def test_une_branche_invalide_est_refusee_la_ou_elle_est_ajoutee(
+    source: str, fragment: str
+) -> None:
+    with pytest.raises(ErreurExecution) as info:
+        lancer(source + '\nfaaite "trop tard";', types=False)
+    assert fragment in info.value.message
+    assert info.value.position is not None
+    assert info.value.position.ligne == 2
+
+
+def test_un_sous_arbre_peut_etre_partage() -> None:
+    source = (
+        "tuu f = tumu(3);\ntuu t = tumu(1, f, f);\namui(t.amaa, f);\nfaaite roa(t), t;"
+    )
+    assert lancer(source) == "4 tumu(1, tumu(3), tumu(3), tumu(3))\n"
+
+
+def test_affecter_amaa_recopie_la_liste() -> None:
+    source = (
+        "tuu l = [tumu(2)];\ntuu t = tumu(1);\nt.amaa = l;\n"
+        "amui(l, tumu(3));\nfaaite roa(t), roa(l), t.amaa == l;"
+    )
+    assert lancer(source) == "2 2 hape\n"
+
+
+def test_amaa_reste_une_tapura() -> None:
+    source = "tuu t = tumu(1, tumu(2));\nfaaite t.amaa, parau(t.amaa), roa(t.amaa);"
+    assert lancer(source) == "[tumu(2)] [tumu(2)] 1\n"
+    with pytest.raises(ErreurExecution) as info:
+        lancer("tuu t = tumu(1);\nfaaite t.amaa < 1;", types=False)
+    assert "comparaison '<' impossible entre tapura et numera" in info.value.message
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "tuu l = [];\namui(l, l);\nfaaite l;",
+        "tuu l = [1];\ntuu m = [l];\namui(l, m);\nfaaite parau(m);",
+        "tuu t = tumu(1);\nt.hotu = t;\nfaaite parau(t);",
+    ],
+)
+def test_une_valeur_qui_se_contient_ne_s_affiche_pas(source: str) -> None:
+    with pytest.raises(ErreurExecution) as info:
+        lancer(source, types=False)
+    assert "se contient elle-même" in info.value.message
+
+
+def test_une_valeur_partagee_s_affiche_normalement() -> None:
+    assert lancer("tuu l = [1];\nfaaite [l, l], [[l], l];") == (
+        "[[1], [1]] [[[1]], [1]]\n"
+    )
+
+
+#: Un tumu de 3 000 nœuds, construit par `amui` en partant de la racine (on accroche
+#: une feuille au dernier nœud) ou des feuilles (on accroche l'arbre à une racine).
+CONSTRUCTIONS = {
+    "depuis la racine": (
+        "tuu racine = tumu(0);\ntuu bout = racine;\n"
+        "tataitahi i roto 1..3000 { tuu f = tumu(i); amui(bout.amaa, f); bout = f; }\n"
+        "faaite roa(racine);"
+    ),
+    "depuis les feuilles": (
+        "tuu t = tumu(0);\n"
+        "tataitahi i roto 1..3000 { tuu r = tumu(i); amui(r.amaa, t); t = r; }\n"
+        "faaite roa(t);"
+    ),
+}
+
+
+@pytest.mark.parametrize("construction", CONSTRUCTIONS)
+def test_construire_un_grand_tumu_par_amui_reste_rapide(construction: str) -> None:
+    debut = time.perf_counter()
+    assert lancer(CONSTRUCTIONS[construction]) == "3000\n"
+    assert time.perf_counter() - debut < 1.0
 
 
 def test_le_parcours_d_un_arbre_profond_ne_sature_pas_la_pile() -> None:

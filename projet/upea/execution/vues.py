@@ -20,7 +20,7 @@ from .arbre_b import _NoeudB, _Pupu
 from .base import _Erreur, _peint, _sorte, _texte
 from .recherche import _ArbreBinaire, _NoeudBinaire, _NoeudRN
 from .tas import _Ahu
-from .tumu import _enfants, _Tumu
+from .tumu import _Tumu
 
 #: Les sortes d'arbres, pour vérifier les arguments (`_attend`).
 _ARBRE = ("arbre", (_Tumu, _ArbreBinaire, _Pupu, _Ahu))
@@ -72,7 +72,7 @@ def _deplier(noeud: object) -> _Contenu:
 @_deplier.register(_Tumu)
 def _(noeud: _Tumu) -> _Contenu:
     """Le premier enfant, la valeur, puis les autres enfants."""
-    enfants = _enfants(noeud)
+    enfants = noeud.amaa
     if not enfants:
         return [(True, noeud.hotu)]
     return [(False, enfants[0]), (True, noeud.hotu), *((False, e) for e in enfants[1:])]
