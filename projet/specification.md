@@ -262,6 +262,7 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 - Un graphe est **orienté** et **pondéré**. Ses nœuds sont des textes ou des entiers (ou des décimaux), jamais des listes, des arbres ou des booléens.
 - `a -> b` ajoute un arc de `a` vers `b`, `a <-> b` ajoute les deux arcs. `: p` donne un poids à l'arc ; sans poids, il vaut `1`. Un poids est un nombre, éventuellement négatif (seuls `dijkstra`, `ea` et `edmonds_karp` refusent les poids négatifs).
 - Un nœud existe dès qu'un arc le touche, ou dès qu'il est écrit seul dans le littéral (`upea { "Rangiroa" }`) ; les nœuds sont rangés dans l'ordre où ils apparaissent. Ajouter un arc qui existe déjà remplace son poids.
+- Deux nœuds égaux au sens de `==` sont **le même nœud** : `1` et `1.0` ne font qu'un, écrit comme à sa première apparition (`upea { 1.0 -> 2, 1 -> 3 }` s'écrit `upea { 1.0 -> 2, 1.0 -> 3 }`). C'est la règle de tout Upea, où `1 == 1.0` vaut `tia` : `1.0 roto [1]` vaut `tia`, et `aifaito [1, 1.0]` n'a qu'une clé.
 - `v roto g` vaut `tia` si `v` est un nœud de `g`.
 - `==` compare deux graphes par leurs nœuds et leurs arcs (poids compris), quel que soit l'ordre d'ajout.
 - `tatara(g, v)` retire le nœud `v` et tous ses arcs.

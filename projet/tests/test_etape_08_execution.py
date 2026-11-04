@@ -91,6 +91,16 @@ def test_chaque_litteral_d_arbre_a_son_constructeur() -> None:
             "7 [1, 2, 3] [3] upea { 1 -> 2 : 7, 2 -> 3 }",
         ),
         ("faaite 2 roto upea { 1 -> 2 }, 3 roto upea { 1 -> 2 };", "tia hape"),
+        # 1 == 1.0 : c'est le même nœud, écrit comme à sa première apparition.
+        (
+            "tuu g = upea {};\ntaati(g, 1, 2);\ntaati(g, 1.0, 3);\n"
+            "faaite roa(g), motu(g), pihai(g, 1), 1.0 roto g;",
+            "3 [1, 2, 3] [2, 3] tia",
+        ),
+        (
+            "tuu h = upea { 1.0 -> 2, 1 -> 3 };\nfaaite motu(h), h;",
+            "[1.0, 2, 3] upea { 1.0 -> 2, 1.0 -> 3 }",
+        ),
         # Listes et textes
         (
             "tuu l = [1, 2];\ntataitahi x roto l { amui(l, x); }\nfaaite l;",
