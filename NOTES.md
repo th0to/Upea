@@ -66,7 +66,7 @@ uv run python -m upea mcp            # serveur MCP en stdio (SDK : groupe `mcp`,
 | 15 algorithmes | fait : parcours, hauteur, diamètre, ancêtre commun… sur toutes les sortes d'arbres ; Dijkstra, Bellman-Ford, Floyd-Warshall, Kahn, Tarjan, biparti, Prim, Kruskal, Edmonds-Karp | `execution/vues.py`, `algorithmes_arbres.py`, `algorithmes_graphes.py` | `test_extension_15_*` |
 | 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
 | 17 propriétés | fait (`hypothesis`) : formater est idempotent et garde le sens, relire `parau` redonne une valeur égale, les deux backends font la même chose, sur des programmes et des valeurs tirés au hasard | `tests/generateurs.py` | `test_extension_17_*` |
-| 18 serveur MCP | en cours ([`PLAN_MCP.md`](PLAN_MCP.md)) : `python -m upea mcp` en stdio ; sans le SDK, un message et le code 2 ; outils `verifier`, `formater`, `transpiler`, `executer` (source de 100 Kio au plus ; deux exécutions à la fois, les suivantes attendent sans que l'attente compte dans le délai) ; diagnostics structurés (sorte, ligne, colonne, message) ; exécution isolée dans un sous-processus (5 s, sortie plafonnée à 64 Kio, mémoire à 512 Mo : *job object* sous Windows, `RLIMIT_AS` sous Linux, aucun plafond sous macOS) ; ressources `upea://specification`, `upea://exemples` (et chaque exemple avec sa sortie), `upea://predefinies` ; prompts `ecrire_programme` et `traduire_depuis_python` ; testé en mémoire, et de bout en bout en stdio (rien d'autre que le JSON-RPC sur stdout) ; chaque prédéfinie connaît sa signature lisible, calculée à partir de ses patrons de typage (`pihai(upea[T], T) -> tapura[T]`) | `serveur_mcp.py`, `atelier.py`, `bac_a_sable.py`, `predefinies.py`, `cli.py` | `test_extension_18_*` |
+| 18 serveur MCP | fait ([`PLAN_MCP.md`](PLAN_MCP.md), branchement dans le [README](README.md)) : `python -m upea mcp` en stdio (SDK `mcp` 2.x, facultatif ; sans lui, un message et le code 2). Outils `verifier`, `formater`, `transpiler` (diagnostics structurés : sorte, ligne, colonne, message) et `executer` (sous-processus : 5 s, 64 Kio de sortie, 512 Mo de mémoire, deux exécutions à la fois) ; ressources `upea://specification`, `upea://exemples` (chacun avec sa sortie), `upea://predefinies` (signatures calculées à partir des patrons de typage : `pihai(upea[T], T) -> tapura[T]`) ; prompts `ecrire_programme`, `traduire_depuis_python`. Testé en mémoire et de bout en bout en stdio | `serveur_mcp.py`, `atelier.py`, `bac_a_sable.py`, `predefinies.py`, `cli.py` | `test_extension_18_*` |
 
 ## Outils Python mobilisés (refactorisation)
 
@@ -104,3 +104,13 @@ uv run python -m upea mcp            # serveur MCP en stdio (SDK : groupe `mcp`,
 - **Comparaisons non associatives** : `a < b < c` est une erreur de syntaxe.
 - **Typage graduel intégré à l'analyse sémantique** : `--sans-types` le désactive, ce
   qui permet de tester les erreurs d'exécution que le vérificateur attraperait sinon.
+- **Serveur MCP** : une erreur de compilation ou d'exécution du programme est un
+  *résultat* d'outil, que le modèle lit pour corriger ; seules les pannes de l'outil
+  (délai dépassé, source de plus de 100 Kio, backend inconnu) sont des erreurs
+  d'outil. Limites :
+  - les avertissements ne sont connus que d'un programme sans erreur (comme avec
+    `check`) ;
+  - le délai de 5 s compte le démarrage de Python (0,3 à 0,7 s ici) ;
+  - aucun plafond de mémoire sous macOS, qui n'applique pas `RLIMIT_AS` ;
+  - les résultats des outils sont des dataclasses sans `slots` : avec `slots`,
+    pydantic (dans le SDK) perd leur schéma.

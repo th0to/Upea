@@ -17,6 +17,11 @@
 >   lignes changées dans `predefinies.py` : s'arrêter et proposer la version réduite.
 >
 > Ordre des lots : 1, 2, 3, 3b, 4, 5, 6a, 6, 7, 8, 9.
+>
+> **État** : tous les lots sont faits, un commit chacun. Écart au plan : le
+> bac à sable lit la sortie de l'enfant avec `communicate`, sans fil de lecture
+> plafonné côté parent (seul le code de l'enfant écrit sur ses sorties, et il borne
+> lui-même la sortie du programme).
 
 ## 0. État des lieux (phase 0)
 
