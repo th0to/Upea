@@ -14,12 +14,14 @@ from typing import Any
 
 import pytest
 from mcp import Client
-from mcp.types import CallToolResult, TextContent
+from mcp.shared.exceptions import MCPError
+from mcp.types import CallToolResult, TextContent, TextResourceContents
 
-from outils import EXEMPLES, PROJET, lire
+from outils import EXEMPLES, LISTE_EXEMPLES, PROJET, lire
 from upea import atelier, bac_a_sable
 from upea.bac_a_sable import Execution
 from upea.cli import ERREUR_USAGE, OK, main
+from upea.predefinies import PREDEFINIES
 from upea.serveur_mcp import TAILLE_MAX_SOURCE, construire_serveur
 
 
@@ -410,3 +412,70 @@ async def test_des_executions_simultanees_reelles(client: Client) -> None:
         r.structured_content["sortie"] for r in resultats if r.structured_content
     ]
     assert sorties == ["0\n", "2\n", "4\n"]
+
+
+# --- Les ressources -------------------------------------------------------------------
+
+
+async def lire_ressource(client: Client, uri: str) -> str:
+    [contenu] = (await client.read_resource(uri)).contents
+    assert isinstance(contenu, TextResourceContents)
+    return contenu.text
+
+
+@pytest.mark.anyio
+async def test_les_ressources_sont_listees(client: Client) -> None:
+    ressources = {str(r.uri): r for r in (await client.list_resources()).resources}
+    for uri in ("upea://specification", "upea://exemples", "upea://predefinies"):
+        assert uri in ressources
+        assert ressources[uri].description, uri
+        assert ressources[uri].mime_type == "text/markdown"
+    for exemple in LISTE_EXEMPLES:  # chacun aussi en ressource fixe (D8)
+        assert f"upea://exemples/{exemple.stem}" in ressources
+    gabarits = (await client.list_resource_templates()).resource_templates
+    assert [g.uri_template for g in gabarits] == ["upea://exemples/{nom}"]
+
+
+@pytest.mark.anyio
+async def test_la_specification(client: Client) -> None:
+    texte_lu = await lire_ressource(client, "upea://specification")
+    assert texte_lu == lire(PROJET / "specification.md")
+
+
+@pytest.mark.anyio
+async def test_la_liste_des_exemples(client: Client) -> None:
+    liste = await lire_ressource(client, "upea://exemples")
+    for exemple in LISTE_EXEMPLES:
+        assert f"upea://exemples/{exemple.stem}" in liste
+    # La première ligne de commentaire de chaque exemple le décrit.
+    assert "Graphes : le littéral upea" in liste
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("exemple", LISTE_EXEMPLES, ids=lambda p: p.stem)
+async def test_chaque_exemple_et_sa_sortie(client: Client, exemple: Path) -> None:
+    texte_lu = await lire_ressource(client, f"upea://exemples/{exemple.stem}")
+    assert lire(exemple) in texte_lu
+    assert lire(exemple.with_suffix(".attendu")) in texte_lu
+
+
+@pytest.mark.anyio
+async def test_un_exemple_inconnu(client: Client) -> None:
+    with pytest.raises(MCPError) as absent:
+        await client.read_resource("upea://exemples/99_inconnu")
+    assert "01_ia_ora_na" in str(absent.value)  # la liste des noms disponibles
+
+
+@pytest.mark.anyio
+async def test_pas_de_chemin_dans_un_nom_d_exemple(client: Client) -> None:
+    with pytest.raises(MCPError):
+        await client.read_resource("upea://exemples/..%2Fspecification")
+
+
+@pytest.mark.anyio
+async def test_les_predefinies(client: Client) -> None:
+    texte_lu = await lire_ressource(client, "upea://predefinies")
+    for nom, predefinie in PREDEFINIES.items():
+        assert f"`{predefinie.texte}`" in texte_lu, nom
+        assert predefinie.arite() in texte_lu, nom
+    assert "`arbre[T]` : `tumu[T] | imi[T]" in texte_lu

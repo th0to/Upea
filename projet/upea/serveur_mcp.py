@@ -16,16 +16,23 @@ import sys
 import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
 from typing import Annotated, Literal
 
 from mcp.server import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ResourceNotFoundError, ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from . import atelier, bac_a_sable
+from . import atelier, bac_a_sable, compilateur
 
 NOM = "upea"
+
+#: Le dossier `projet/` : la spécification et les exemples.
+DOSSIER = Path(__file__).resolve().parent.parent
+SPECIFICATION = DOSSIER / "specification.md"
+EXEMPLES = DOSSIER / "exemples"
+MARKDOWN = "text/markdown"
 
 #: La taille maximale d'un source reçu par un outil (en octets UTF-8).
 TAILLE_MAX_SOURCE = 100 * 1024
@@ -121,6 +128,7 @@ def construire_serveur(
     )
     _outils_sans_execution(serveur)
     _outil_executer(serveur, delai)
+    _ressources(serveur)
     return serveur
 
 
@@ -267,6 +275,136 @@ def _outil_executer(serveur: MCPServer[None], delai: float) -> None:
                 raise ToolError(_delai_depasse(arret)) from None
             except bac_a_sable.PanneDuBacASable as panne:
                 raise ToolError(str(panne)) from None
+
+
+def _ressources(serveur: MCPServer[None]) -> None:
+    def ressource[F: Callable[..., object]](uri: str, titre: str) -> Callable[[F], F]:
+        """`serveur.resource` en Markdown, décrite par la docstring."""
+
+        def enregistrer(fonction: F) -> F:
+            description = inspect.cleandoc(fonction.__doc__ or "")
+            decorer = serveur.resource(
+                uri, title=titre, description=description, mime_type=MARKDOWN
+            )
+            return decorer(fonction)
+
+        return enregistrer
+
+    @ressource("upea://specification", "Spécification d'Upea")
+    def specification() -> str:
+        """La spécification complète du langage Upea : vocabulaire tahitien,
+        grammaire, sémantique, types, fonctions prédéfinies, algorithmes d'arbres et
+        de graphes, dessins, messages d'erreur. À lire en entier avant d'écrire le
+        moindre programme Upea : le langage ne ressemble à aucun autre."""
+        return _lire(SPECIFICATION)
+
+    @ressource("upea://exemples", "Exemples de programmes Upea")
+    def exemples() -> str:
+        """La liste des programmes d'exemple, chacun avec ce qu'il montre. Chaque
+        exemple se lit à upea://exemples/<nom>, avec sa sortie exacte."""
+        lignes = [
+            f"- `upea://exemples/{nom}` : {_description(chemin)}"
+            for nom, chemin in _exemples().items()
+        ]
+        return (
+            "# Les exemples d'Upea\n\n"
+            "Des programmes complets, chacun avec sa sortie exacte. Pour en lire un : "
+            "`upea://exemples/<nom>`.\n\n" + "\n".join(lignes) + "\n"
+        )
+
+    @ressource("upea://exemples/{nom}", "Un exemple de programme Upea")
+    def exemple(nom: str) -> str:
+        """Un programme d'exemple complet (01_ia_ora_na, 05_motu…), et la sortie
+        exacte qu'il affiche. La liste des noms est dans upea://exemples."""
+        return _exemple(nom)
+
+    # Chaque exemple est aussi une ressource fixe : un client les liste ainsi.
+    for nom, chemin in _exemples().items():
+        serveur.resource(
+            f"upea://exemples/{nom}",
+            name=f"exemple_{nom}",
+            title=f"Exemple {nom}",
+            description=_description(chemin),
+            mime_type=MARKDOWN,
+        )(_lecteur(nom))
+
+    @ressource("upea://predefinies", "Fonctions prédéfinies d'Upea")
+    def predefinies() -> str:
+        """Toutes les fonctions prédéfinies d'Upea (roa, amui, tumu, pihai, ea,
+        dijkstra, hohoa…), avec leur nombre d'arguments et leur signature typée,
+        tirées du compilateur lui-même. À consulter pour savoir quelle fonction
+        existe et ce qu'elle accepte."""
+        return _predefinies()
+
+
+def _lire(chemin: Path) -> str:
+    return chemin.read_text(encoding="utf-8")
+
+
+def _exemples() -> dict[str, Path]:
+    """Les exemples, par nom (`05_motu`)."""
+    return {chemin.stem: chemin for chemin in sorted(EXEMPLES.glob("*.upea"))}
+
+
+def _description(chemin: Path) -> str:
+    """Le commentaire en tête d'un exemple, sur une seule ligne."""
+    lignes: list[str] = []
+    for ligne in _lire(chemin).splitlines():
+        if not ligne.startswith("//"):
+            break
+        lignes.append(ligne.removeprefix("//").strip())
+    return " ".join(lignes)
+
+
+def _bloc(langage: str, texte: str) -> str:
+    fin = "" if texte.endswith("\n") else "\n"
+    return f"```{langage}\n{texte}{fin}```\n"
+
+
+def _exemple(nom: str) -> str:
+    exemples = _exemples()
+    if nom not in exemples:
+        raise ResourceNotFoundError(
+            f"pas d'exemple « {nom} » ; les exemples : {', '.join(exemples)}"
+        )
+    chemin = exemples[nom]
+    return (
+        f"# Exemple {nom}\n\n{_description(chemin)}\n\n"
+        f"## Le programme ({chemin.name})\n\n{_bloc('upea', _lire(chemin))}\n"
+        "## Sa sortie exacte\n\n"
+        f"{_bloc('text', _lire(chemin.with_suffix('.attendu')))}"
+    )
+
+
+def _lecteur(nom: str) -> Callable[[], str]:
+    """La fonction, sans paramètre, qui lit l'exemple `nom`."""
+
+    def lire() -> str:
+        return _exemple(nom)
+
+    return lire
+
+
+def _predefinies() -> str:
+    signatures = "\n".join(
+        f"- `{p.texte}` ({p.arite()})" for p in compilateur.fonctions_predefinies()
+    )
+    abreviations = "\n".join(
+        f"- `{abrege}` : `{sens}`"
+        for abrege, sens in compilateur.abreviations().items()
+    )
+    return (
+        "# Les fonctions prédéfinies d'Upea\n\n"
+        "Tirées du compilateur : la signature de chaque fonction, telle que le "
+        "vérificateur de types la connaît. Ce que fait chaque fonction est décrit "
+        "dans upea://specification (sections « Fonctions prédéfinies », "
+        "« Algorithmes d'arbres », « Algorithmes de graphes » et « Dessins »).\n\n"
+        "Notation : `T` est le type des éléments (les nœuds d'un graphe, les clés "
+        "ou les valeurs d'un arbre), le même dans toute une signature ; `?` est un "
+        "type que le vérificateur ne connaît pas d'avance (souvent une valeur, ou "
+        "`aore`) ; `[, x]` est un argument facultatif, et `x...` peut se répéter.\n\n"
+        f"## Signatures\n\n{signatures}\n\n## Abréviations\n\n{abreviations}\n"
+    )
 
 
 def _delai_depasse(arret: bac_a_sable.DelaiDepasse) -> str:

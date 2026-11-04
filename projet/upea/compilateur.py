@@ -19,6 +19,7 @@ from .generateur_ast import GenerateurAst, compiler_module, correspondance_ident
 from .lexer import tokenize
 from .noeuds import Instr, Programme
 from .parser import parse
+from .predefinies import ABREVIATIONS, PREDEFINIES, Predefinie
 from .prelude import IMPORT_PRELUDE, PRELUDE
 from .semantique import Analyse, analyser
 from .sourcemap import SourceMap
@@ -112,6 +113,16 @@ def executer_arbre(source: str, *, types: bool = True) -> None:
 def tokens(source: str) -> Iterator[Token]:
     """Les tokens de source (pour le REPL et les outils)."""
     return tokenize(source)
+
+
+def fonctions_predefinies() -> tuple[Predefinie, ...]:
+    """Les fonctions prédéfinies, dans l'ordre de leur déclaration (pour les outils)."""
+    return tuple(PREDEFINIES.values())
+
+
+def abreviations() -> dict[str, str]:
+    """Les sortes abrégées dans leurs signatures (`arbre[T]`), et leur sens."""
+    return dict(ABREVIATIONS)
 
 
 def traduire_suite(
