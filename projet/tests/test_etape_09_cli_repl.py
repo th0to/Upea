@@ -12,8 +12,9 @@ import pytest
 
 from outils import EXEMPLES, PROJET, lire
 from upea.cli import ERREUR_COMPILATION, ERREUR_EXECUTION, ERREUR_USAGE, OK, main
-from upea.compilateur import executer
+from upea.compilateur import executer, transpiler
 from upea.erreurs import ErreurExecution
+from upea.prelude import module_prelude
 from upea.repl import INVITE, SUITE, Reponse, repl
 
 FAUX = (
@@ -71,6 +72,79 @@ def test_transpile_ecrit_dans_un_fichier(tmp_path: Path) -> None:
     )
     compile(sortie.read_text(encoding="utf-8"), str(sortie), "exec")
     assert not (tmp_path / "fibo.py.map.json").exists()
+
+
+# --- transpile --prelude externe ------------------------------------------------------
+
+
+@pytest.mark.parametrize("backend", ["python", "ast"])
+@pytest.mark.parametrize("nom", ["02_fibonacci", "10_hohoa"])
+def test_le_prelude_externe_est_ecrit_a_cote_et_importe(
+    tmp_path: Path, backend: str, nom: str
+) -> None:
+    exemple = EXEMPLES / f"{nom}.upea"
+    sortie = tmp_path / "programme.py"
+    arguments = ["--backend", backend, "--prelude", "externe", "-o", str(sortie)]
+    assert main(["transpile", str(exemple), *arguments]) == OK
+    code = sortie.read_text(encoding="utf-8")
+    assert "from upea_prelude import *" in code
+    assert "class _Tumu" not in code
+    assert len(code.splitlines()) < 100
+    assert (tmp_path / "upea_prelude.py").exists()
+    # Lancé d'ailleurs : Python cherche upea_prelude.py à côté du fichier.
+    resultat = subprocess.run(
+        [sys.executable, str(sortie)],
+        cwd=PROJET,
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        capture_output=True,
+        encoding="utf-8",
+    )
+    assert resultat.returncode == OK, resultat.stderr
+    attendu = lire(exemple.with_suffix(".attendu"))
+    assert resultat.stdout.replace("\r\n", "\n") == attendu
+
+
+@pytest.mark.parametrize(
+    ("arguments", "fragment"),
+    [
+        (["--prelude", "externe"], "--prelude externe demande un fichier de sortie"),
+        (
+            ["--prelude", "externe", "--backend", "formateur", "-o", "x.upea"],
+            "le backend 'formateur' ne produit pas de Python",
+        ),
+        (["--prelude", "externe", "-o", "upea_prelude.py"], "ne peut pas s'appeler"),
+    ],
+)
+def test_le_prelude_externe_mal_demande_est_refuse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    arguments: list[str],
+    fragment: str,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    exemple = str(EXEMPLES / "02_fibonacci.upea")
+    assert main(["transpile", exemple, *arguments]) == ERREUR_USAGE
+    assert fragment in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("backend", ["python", "ast"])
+def test_la_sourcemap_tient_compte_du_prelude_externe(backend: str) -> None:
+    sortie = transpiler("faaite 1;\nfaaite 2;", backend, prelude_externe=True)
+    lignes = sortie.code.splitlines()
+    vers_upea = {lignes[py - 1]: upea for py, upea in sortie.sourcemap.lignes.items()}
+    assert vers_upea == {"_affiche(1)": 1, "_affiche(2)": 2}
+
+
+def test_le_prelude_externe_exporte_tous_ses_noms() -> None:
+    espace: dict[str, object] = {}
+    exec(compile(module_prelude(), "upea_prelude.py", "exec"), espace)
+    exportes = espace["__all__"]
+    assert isinstance(exportes, list)
+    definis = {n for n in espace if not n.startswith("__")} - {"annotations", "_"}
+    assert set(exportes) == definis
+    assert {"_affiche", "_tumu", "_Tumu", "_parcours", "_roto"} <= definis
 
 
 def test_check_un_programme_correct(capsys: pytest.CaptureFixture[str]) -> None:

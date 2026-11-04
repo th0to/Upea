@@ -80,6 +80,40 @@ PRELUDE: str = (
     + "\n".join(map(_corps, MODULES))
 )
 
+#: Le module où `transpile --prelude externe` écrit le prélude, à côté du programme.
+MODULE_PRELUDE = "upea_prelude"
+
+#: Ce qui remplace le prélude en tête d'un programme qui l'importe.
+IMPORT_PRELUDE = f"from {MODULE_PRELUDE} import *\n"
+
+
+def _noms_definis(code: str) -> set[str]:
+    """Les noms que définit le premier niveau d'un module."""
+    noms: set[str] = set()
+    for instruction in ast.parse(code).body:
+        match instruction:
+            case ast.FunctionDef(name=nom) | ast.ClassDef(name=nom):
+                noms.add(nom)
+            case ast.Assign(targets=cibles):
+                noms.update(c.id for c in cibles if isinstance(c, ast.Name))
+            case ast.AnnAssign(target=ast.Name(id=nom)) | ast.TypeAlias(
+                name=ast.Name(id=nom)
+            ):
+                noms.add(nom)
+            case ast.Import(names=alias) | ast.ImportFrom(names=alias):
+                noms.update((a.asname or a.name).split(".")[0] for a in alias)
+    return noms
+
+
+@cache
+def module_prelude() -> str:
+    """Le texte de `upea_prelude.py` : le prélude, et son `__all__`. Tous ses noms
+    commencent par `_` : sans `__all__`, `import *` n'en importerait aucun."""
+    noms = sorted(_noms_definis(PRELUDE) - {"annotations", "_"})
+    exportes = "".join(f"    {nom!r},\n" for nom in noms)
+    return PRELUDE + f"\n\n__all__ = [\n{exportes}]\n"
+
+
 #: La ligne qui sépare le prélude du programme dans le fichier généré.
 SEPARATEUR = (
     "# --- programme Upea ---------------------------------------------------\n"

@@ -38,6 +38,7 @@ Depuis `projet/` :
 uv run python -m upea run exemples/05_motu.upea
 uv run python -m upea transpile exemples/02_fibonacci.upea --backend ast
 uv run python -m upea transpile exemples/02_fibonacci.upea -o fibo.py --sourcemap
+uv run python -m upea transpile exemples/02_fibonacci.upea -o fibo.py --prelude externe  # + upea_prelude.py
 uv run python -m upea check exemples/06_tahua.upea
 uv run python -m upea fmt exemples/04_tumu.upea
 uv run python -m upea repl
@@ -91,7 +92,8 @@ Le serveur MCP n'est pas commencé.
   ordonnés (`aifaito [5, 3, 8]`, `pupu 4 [1, 2]`). Les structures et les algorithmes sont
   dans le prélude, le paquet `upea/execution/` : de vrais modules Python, vérifiés par
   mypy et testés, concaténés en tête de chaque fichier généré (qui reste autonome, mais
-  fait maintenant environ 2 000 lignes).
+  fait environ 2 500 lignes) ; `transpile --prelude externe` les écrit plutôt à côté,
+  dans `upea_prelude.py`, que le fichier généré importe.
 - Les mots-clés des arbres ordonnés (`imi`, `aifaito`, `uteere`, `pupu`, `ahu`, `ahunui`)
   et des opérations (`tatara`, `iriti`, `iti`, `rahi`, `hohoa`) sont des propositions, à
   corriger. `matrice`, `dot` et `mermaid` gardent leur nom connu, comme les algorithmes.

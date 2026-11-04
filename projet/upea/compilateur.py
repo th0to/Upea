@@ -19,7 +19,7 @@ from .generateur_ast import GenerateurAst, compiler_module, correspondance_ident
 from .lexer import tokenize
 from .noeuds import Instr, Programme
 from .parser import parse
-from .prelude import PRELUDE
+from .prelude import IMPORT_PRELUDE, PRELUDE
 from .semantique import Analyse, analyser
 from .sourcemap import SourceMap
 from .tokens import Token
@@ -56,11 +56,35 @@ def compiler(source: str, *, types: bool = True) -> Compilation:
     return Compilation(programme, analyser(programme, types=types))
 
 
-def transpiler(source: str, backend: str = "python", *, types: bool = True) -> Sortie:
-    """Le code produit par `backend`, et la correspondance de ses lignes."""
+def transpiler(
+    source: str,
+    backend: str = "python",
+    *,
+    types: bool = True,
+    prelude_externe: bool = False,
+) -> Sortie:
+    """Le code produit par `backend`, et la correspondance de ses lignes.
+
+    Avec `prelude_externe`, le code importe le prélude (`upea_prelude.py`, à écrire
+    à côté : `module_prelude()`) au lieu de le recopier.
+    """
     generateur = choisir_backend(backend)
+    if prelude_externe:
+        generateur = importer_le_prelude(generateur)
     compilation = compiler(source, types=types)
     return generateur.generer(compilation.programme, compilation.analyse)
+
+
+def importer_le_prelude(generateur: Backend) -> Backend:
+    """Le même backend, dont le code importe le prélude au lieu de le recopier."""
+    match generateur:
+        case GenerateurPython() | GenerateurAst():
+            return type(generateur)(prelude=IMPORT_PRELUDE)
+        case _:
+            raise ErreurUpea(
+                f"le backend '{generateur.nom}' ne produit pas de Python : "
+                "il n'a pas de prélude"
+            )
 
 
 def executer(source: str, backend: str = "python", *, types: bool = True) -> None:

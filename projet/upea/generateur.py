@@ -192,6 +192,10 @@ class GenerateurPython:
     extension = ".py"
     executable = True
 
+    def __init__(self, prelude: str = PRELUDE) -> None:
+        #: Le code placé en tête du fichier : le prélude, ou son import.
+        self.prelude = prelude
+
     def traduire(
         self, instructions: tuple[Instr, ...], analyse: Analyse
     ) -> tuple[str, SourceMap]:
@@ -205,5 +209,5 @@ class GenerateurPython:
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
         code, sourcemap = self.traduire(programme.instructions, analyse)
-        entete = PRELUDE + "\n\n" + SEPARATEUR
+        entete = self.prelude + "\n\n" + SEPARATEUR
         return Sortie(entete + code, sourcemap.decaler(entete.count("\n")))

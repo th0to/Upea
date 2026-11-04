@@ -500,11 +500,13 @@ Les programmes de `exemples/` ont chacun leur sortie attendue exacte (`.attendu`
 
 ```
 python -m upea run       programme.upea [--backend python|ast] [--trace] [--sans-types]
-python -m upea transpile programme.upea [--backend python|ast|formateur] [-o sortie.py] [--sourcemap]
+python -m upea transpile programme.upea [--backend python|ast|formateur] [-o sortie.py] [--sourcemap] [--prelude inclus|externe]
 python -m upea check     programme.upea [--sans-types]
 python -m upea fmt       programme.upea [--ecrire]
 python -m upea repl
 ```
+
+Par défaut, `transpile` recopie le prélude (les arbres, les graphes, les algorithmes : environ 2 500 lignes) en tête du fichier produit, qui se lance seul (`python sortie.py`). Avec `--prelude externe` (qui demande `-o`), le prélude est écrit à côté, dans `upea_prelude.py`, et le fichier produit l'importe : il ne fait plus que quelques dizaines de lignes, mais ne se lance qu'avec son voisin.
 
 Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible), `2` erreur d'utilisation (réservé par `argparse`), `3` erreur d'exécution. Les erreurs et les avertissements vont sur la sortie d'erreur.
 

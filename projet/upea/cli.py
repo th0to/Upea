@@ -18,6 +18,7 @@ from .compilateur import (
 )
 from .erreurs import ErreurExecution, ErreursMultiples, ErreurUpea, formater
 from .execution.base import _en_utf8
+from .prelude import MODULE_PRELUDE, module_prelude
 from .repl import repl
 
 OK, ERREUR_COMPILATION, ERREUR_USAGE, ERREUR_EXECUTION = 0, 1, 2, 3
@@ -85,11 +86,23 @@ def commande_transpile(args: argparse.Namespace) -> int:
     if args.sourcemap and args.sortie is None:
         _erreur("upea : --sourcemap demande un fichier de sortie (-o)")
         return ERREUR_USAGE
+    externe = args.prelude == "externe"
+    if externe and args.sortie is None:
+        _erreur("upea : --prelude externe demande un fichier de sortie (-o)")
+        return ERREUR_USAGE
+    if externe and Path(args.sortie).name == f"{MODULE_PRELUDE}.py":
+        _erreur(
+            f"upea : le fichier de sortie ne peut pas s'appeler {MODULE_PRELUDE}.py, "
+            "le nom du prélude"
+        )
+        return ERREUR_USAGE
     source = _lire(args.fichier)
     if source is None:
         return ERREUR_COMPILATION
     try:
-        sortie = transpiler(source, args.backend, types=args.types)
+        sortie = transpiler(
+            source, args.backend, types=args.types, prelude_externe=externe
+        )
     except ErreursMultiples as erreurs:
         _erreur(formater(erreurs, source, args.fichier))
         return ERREUR_COMPILATION
@@ -101,6 +114,9 @@ def commande_transpile(args: argparse.Namespace) -> int:
         return OK
     destination = Path(args.sortie)
     destination.write_text(sortie.code, encoding="utf-8")
+    if externe:
+        prelude = destination.with_name(f"{MODULE_PRELUDE}.py")
+        prelude.write_text(module_prelude(), encoding="utf-8")
     if args.sourcemap:
         carte = destination.with_name(destination.name + ".map.json")
         sortie.sourcemap.nommer(args.fichier).ecrire(carte)
@@ -187,6 +203,15 @@ def construire_parser() -> argparse.ArgumentParser:
     transpile.add_argument("-o", dest="sortie", help="le fichier à écrire")
     transpile.add_argument(
         "--sourcemap", action="store_true", help="écrit aussi <sortie>.map.json"
+    )
+    transpile.add_argument(
+        "--prelude",
+        default="inclus",
+        choices=["inclus", "externe"],
+        help=(
+            "inclus : le prélude est recopié en tête du fichier (par défaut) ; "
+            f"externe : il est écrit à côté, dans {MODULE_PRELUDE}.py, et importé"
+        ),
     )
     sans_types(transpile)
     transpile.set_defaults(action=commande_transpile)

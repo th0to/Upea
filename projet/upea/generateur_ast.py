@@ -299,6 +299,10 @@ class GenerateurAst:
     extension = ".py"
     executable = True
 
+    def __init__(self, prelude: str = PRELUDE) -> None:
+        #: Le code placé en tête du fichier : le prélude, ou son import.
+        self.prelude = prelude
+
     def module(self, programme: Programme, analyse: Analyse) -> ast.Module:
         """L'arbre Python du programme seul (sans prélude), aux lignes d'Upea."""
         constructeur = _Constructeur(analyse)
@@ -306,7 +310,7 @@ class GenerateurAst:
         return ast.fix_missing_locations(ast.Module(body=corps, type_ignores=[]))
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
-        prelude = _texte_prelude()
+        prelude = _texte_prelude(self.prelude)
         utilisateur = self.module(programme, analyse)
         # Le programme tel qu'`ast.unparse` l'écrirait à la suite du prélude.
         suite = "".join(_avant(i) + ast.unparse(i) for i in utilisateur.body)
@@ -324,11 +328,12 @@ class GenerateurAst:
 
 
 @cache
-def _texte_prelude() -> str:
-    """Le prélude tel que l'écrit `ast.unparse`, calculé une seule fois (l'analyser
-    et le réécrire coûte une cinquantaine de millisecondes). On garde un texte, et
-    non des nœuds : aucune génération ne peut modifier ce qui est en cache."""
-    return ast.unparse(ast.parse(PRELUDE))
+def _texte_prelude(prelude: str) -> str:
+    """Le prélude (ou son import) tel que l'écrit `ast.unparse`, calculé une seule
+    fois (analyser et réécrire le prélude coûte une cinquantaine de millisecondes).
+    On garde un texte, et non des nœuds : aucune génération ne peut modifier ce qui
+    est en cache."""
+    return ast.unparse(ast.parse(prelude))
 
 
 def _avant(instruction: ast.stmt) -> str:
