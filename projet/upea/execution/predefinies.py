@@ -59,6 +59,25 @@ def _tatara(collection: _Any, valeur: object) -> bool:
     return retiree
 
 
+#: Là où `roto` cherche : un élément, une valeur de nœud, un nœud ou une clé.
+_CONTENEURS = (list, _Tumu, _Upea, *_ORDONNES)
+
+
+def _roto(valeur: object, conteneur: object) -> bool:
+    """`valeur roto conteneur`. Les sortes sont vérifiées ici, et non d'après le
+    message de la `TypeError` de Python, qui change d'une version à l'autre."""
+    if isinstance(conteneur, str):
+        if not isinstance(valeur, str):
+            raise _Erreur(
+                "roto : on ne cherche qu'un parau dans un parau, "
+                f"pas un {_sorte(valeur)}"
+            )
+        return valeur in conteneur
+    if isinstance(conteneur, _CONTENEURS):
+        return valeur in conteneur
+    raise _Erreur(f"roto : on ne peut pas chercher dans un {_sorte(conteneur)}")
+
+
 def _non_vide(collection: _Any, fonction: str) -> None:
     if _roa(collection) == 0:
         raise _Erreur(f"{fonction} : le {_sorte(collection)} est vide")

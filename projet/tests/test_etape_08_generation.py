@@ -141,7 +141,7 @@ def test_l_emetteur_indente_un_texte_de_plusieurs_lignes() -> None:
         ),
         (
             'tuu l = [hape];\nl[0] = "a" roto "abc";',
-            "l = [False]\nl[0] = ('a' in 'abc')\n",
+            "l = [False]\nl[0] = _roto('a', 'abc')\n",
         ),
     ],
 )

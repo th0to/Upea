@@ -398,6 +398,7 @@ Le programme s'arrête, et l'utilisateur voit la **ligne Upea** en cause, jamais
 | `pihai(g, "X")` (absent) | le nœud "X" n'est pas dans le graphe |
 | `teiaha(g, "A", "C")` | pas d'arc de "A" vers "C" |
 | `tataitahi x roto 5 { … }` | on ne peut pas parcourir un numera |
+| `faaite 1 roto 5;` | roto : on ne peut pas chercher dans un numera |
 | `x.hotu` (x n'est pas un arbre) | seul un tumu a les champs hotu et amaa |
 | récursion sans fin | récursion trop profonde |
 | `iriti(ahu [])` | iriti : le ahu est vide |

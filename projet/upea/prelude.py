@@ -69,5 +69,5 @@ def nom_fonction(nom: str) -> str:
     return f"_{nom}" if nom in PREDEFINIES else nom_python(nom)
 
 
-#: Les opérateurs dont l'écriture Python diffère.
-OPERATEURS_PYTHON = {"ma": "and", "anei": "or", "roto": "in"}
+#: Les opérateurs dont l'écriture Python diffère (`roto` devient un appel à `_roto`).
+OPERATEURS_PYTHON = {"ma": "and", "anei": "or"}

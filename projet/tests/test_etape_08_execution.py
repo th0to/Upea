@@ -7,6 +7,7 @@ import re
 import pytest
 
 from outils import lancer
+from upea.compilateur import TRADUCTIONS
 from upea.erreurs import ErreurExecution
 from upea.execution.algorithmes_arbres import _teitei
 from upea.execution.algorithmes_graphes import _ea
@@ -158,6 +159,9 @@ def test_le_prelude_fait_ce_que_dit_la_specification(source: str, sortie: str) -
             2,
         ),
         ("faaite 1 roto 5;", "roto : on ne peut pas chercher dans un numera", 1),
+        ("faaite 1 roto 2.5;", "roto : on ne peut pas chercher dans un tuhaa", 1),
+        ("faaite 1 roto tia;", "roto : on ne peut pas chercher dans un tiahape", 1),
+        ("faaite 1 roto aore;", "roto : on ne peut pas chercher dans un aore", 1),
         ('faaite 1 roto "abc";', "roto : on ne cherche qu'un parau", 1),
         ("faaite tumu(1, 2);", "les enfants doivent être des tumu", 1),
         ("tuu t = tumu(1);\nt.amaa = 3;\nfaaite roa(t);", "forment une tapura", 3),
@@ -176,9 +180,46 @@ def test_une_erreur_d_execution_est_traduite_et_situee(
     with pytest.raises(ErreurExecution) as info:
         lancer(source, types=False)  # sans types : l'erreur arrive à l'exécution
     assert fragment in info.value.message
+    assert "opération impossible sur ces valeurs" not in info.value.message
     assert info.value.position is not None
     assert info.value.position.ligne == ligne
     assert isinstance(info.value.__cause__, Exception)
+
+
+@pytest.mark.parametrize("source", ["faaite 1 roto 5;", 'faaite 1 roto "abc";'])
+def test_roto_verifie_lui_meme_ses_operandes(source: str) -> None:
+    """`roto` ne dépend pas du texte des `TypeError` de Python, qui change d'une
+    version à l'autre : c'est le prélude qui lève l'erreur, déjà rédigée."""
+    with pytest.raises(ErreurExecution) as info:
+        lancer(source, types=False)
+    assert type(info.value.__cause__).__name__ == "_Erreur"
+
+
+#: Pour chaque motif de `TRADUCTIONS`, dans l'ordre, un programme qui le déclenche.
+CANARIS = [
+    'faaite 1 + "a";',
+    'faaite "a" + 1;',
+    'faaite 1 < "a";',
+    'faaite -"a";',
+    'tuu t = "abc";\nt[0] = "x";',
+    'tuu l = [1];\nfaaite l["a"];',
+    "tuu x = 5;\nfaaite x[0];",
+    "tataitahi i roto 0..2.5 { }",
+]
+
+
+@pytest.mark.parametrize(
+    ("motif", "source"),
+    list(zip([m for m, _ in TRADUCTIONS], CANARIS, strict=True)),
+)
+def test_chaque_traduction_reconnait_encore_le_message_de_python(
+    motif: re.Pattern[str], source: str
+) -> None:
+    """Si une version de Python change le texte d'une `TypeError`, ce test dit
+    laquelle des traductions ne la reconnaît plus."""
+    with pytest.raises(ErreurExecution) as info:
+        lancer(source, types=False)
+    assert motif.search(str(info.value.__cause__)), str(info.value.__cause__)
 
 
 def test_une_valeur_non_hachable_n_est_jamais_un_noeud() -> None:

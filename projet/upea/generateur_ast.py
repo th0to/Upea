@@ -60,7 +60,6 @@ COMPARATEURS: dict[str, type[ast.cmpop]] = {
     "<=": ast.LtE,
     ">": ast.Gt,
     ">=": ast.GtE,
-    "roto": ast.In,
 }
 BOOLEENS: dict[str, type[ast.boolop]] = {"ma": ast.And, "anei": ast.Or}
 
@@ -268,6 +267,8 @@ class _Constructeur:
                 return ast.UnaryOp(op=unaire, operand=self.expr(operande))
             case Binaire(op, gauche, droite):
                 g, d = self.expr(gauche), self.expr(droite)
+                if op == "roto":
+                    return _appel("_roto", [g, d])
                 if op in BOOLEENS:
                     operateur = BOOLEENS[op]
                     # `a ma b ma c` : Python range les trois dans un seul BoolOp.

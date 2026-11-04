@@ -165,6 +165,8 @@ class _Traducteur:
                 if op == "-":
                     return f"(-{self.expr(operande)})"
                 return f"(not {self.expr(operande)})"
+            case Binaire("roto", gauche, droite):
+                return f"_roto({self.expr(gauche)}, {self.expr(droite)})"
             case Binaire(op, gauche, droite):
                 operateur = OPERATEURS_PYTHON.get(op, op)
                 return f"({self.expr(gauche)} {operateur} {self.expr(droite)})"

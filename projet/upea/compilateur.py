@@ -147,6 +147,8 @@ def _sorte(nom_python: str) -> str:
 type Traduction = Callable[[re.Match[str]], str]
 
 #: Les messages des `TypeError` de Python, et leur traduction en termes d'Upea.
+#: Ils dépendent de la version de CPython : chacun a son programme témoin dans
+#: `test_etape_08_execution.py` (`CANARIS`). `roto` n'en dépend plus (`_roto`).
 TRADUCTIONS: list[tuple[re.Pattern[str], Traduction]] = [
     (
         re.compile(r"unsupported operand type\(s\) for (\S+): '(\w+)' and '(\w+)'"),
@@ -182,16 +184,6 @@ TRADUCTIONS: list[tuple[re.Pattern[str], Traduction]] = [
     (
         re.compile(r"'(\w+)' object is not subscriptable"),
         lambda m: f"on ne peut pas indexer un {_sorte(m[1])}",
-    ),
-    (
-        re.compile(r"argument of type '(\w+)' is not iterable"),
-        lambda m: f"roto : on ne peut pas chercher dans un {_sorte(m[1])}",
-    ),
-    (
-        re.compile(r"'in <string>' requires string as left operand, not (\w+)"),
-        lambda m: (
-            f"roto : on ne cherche qu'un parau dans un parau, pas un {_sorte(m[1])}"
-        ),
     ),
     (
         re.compile(r"cannot be interpreted as an integer"),
