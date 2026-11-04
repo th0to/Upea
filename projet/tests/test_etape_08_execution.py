@@ -18,7 +18,7 @@ from upea.execution.predefinies import _roa
 from upea.execution.tumu import _Tumu, _tumu
 from upea.noeuds import SorteCollection
 from upea.predefinies import PREDEFINIES
-from upea.prelude import MODULES, PRELUDE
+from upea.prelude import MODULES, PRELUDE, sans_imports_relatifs
 
 
 def espace_du_prelude() -> dict[str, object]:
@@ -39,6 +39,32 @@ def test_le_prelude_concatene_est_autonome() -> None:
     assert PRELUDE.count("from __future__ import annotations") == 1
     noms = {n for n in espace_du_prelude() if not n.startswith("__")}
     assert {n for n in noms if not n.startswith("_")} == {"annotations"}
+
+
+def test_les_imports_relatifs_sont_retires_quelle_que_soit_leur_forme() -> None:
+    texte = (
+        "from __future__ import annotations\n"
+        "import os as _os\n"
+        "from .base import (\n    _a,  # un commentaire\n    _b,\n)\n"
+        "from .tas import _c, \\\n    _d\n"
+        "# Un commentaire qui reste.\n"
+        "def _f() -> None:\n    pass\n"
+    )
+    assert sans_imports_relatifs(texte, "essai") == (
+        "import os as _os\n# Un commentaire qui reste.\ndef _f() -> None:\n    pass\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "texte",
+    [
+        "def _f() -> None:\n    from .base import _a\n",
+        "from .base import _a; _x = 1\n",
+    ],
+)
+def test_un_import_relatif_mal_place_est_refuse(texte: str) -> None:
+    with pytest.raises(ValueError, match=r"essai\.py:\d+ : import relatif"):
+        sans_imports_relatifs(texte, "essai")
 
 
 def test_chaque_predefinie_existe_dans_le_prelude() -> None:

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import builtins
 import keyword
-import re
 from functools import cache
 from pathlib import Path
 
@@ -29,14 +29,47 @@ MODULES = (
 
 _DOSSIER = Path(execution.__file__).parent
 _FUTUR = "from __future__ import annotations\n"
-#: `from .base import _x` ou `from .base import (\n  _x,\n  _y,\n)`.
-_IMPORT_RELATIF = re.compile(r"^from \.\w* import (?:\([^)]*\)|.*)\n", re.MULTILINE)
+
+
+def _a_retirer(noeud: ast.AST) -> bool:
+    """Un import relatif (`from .base import _x`), ou `from __future__`."""
+    return isinstance(noeud, ast.ImportFrom) and (
+        noeud.level > 0 or noeud.module == "__future__"
+    )
+
+
+def sans_imports_relatifs(texte: str, module: str) -> str:
+    """Le code d'un module du prélude, sans `from __future__` ni ses imports relatifs :
+    une fois les modules mis bout à bout, ce qu'ils importent est déjà défini plus haut.
+
+    Les lignes sont repérées avec `ast`, quelle que soit la forme de l'import
+    (parenthèses, `\\`, commentaires). Un import relatif ailleurs qu'en tête de
+    module, ou qui partage sa ligne avec autre chose, laisserait un fichier généré
+    cassé : c'est une erreur.
+    """
+    arbre = ast.parse(texte)
+    retirees: set[int] = set()
+    for noeud in arbre.body:
+        if _a_retirer(noeud):
+            assert noeud.end_lineno is not None
+            retirees.update(range(noeud.lineno, noeud.end_lineno + 1))
+    for instruction in ast.walk(arbre):
+        if not isinstance(instruction, ast.stmt) or instruction.end_lineno is None:
+            continue
+        lignes = set(range(instruction.lineno, instruction.end_lineno + 1))
+        mal_place = _a_retirer(instruction) and instruction not in arbre.body
+        if mal_place or (not _a_retirer(instruction) and lignes <= retirees):
+            raise ValueError(
+                f"{module}.py:{instruction.lineno} : import relatif hors de la tête "
+                "du module, ou sur la ligne d'une autre instruction"
+            )
+    gardees = enumerate(texte.splitlines(keepends=True), 1)
+    return "".join(ligne for numero, ligne in gardees if numero not in retirees)
 
 
 def _corps(module: str) -> str:
-    """Le code d'un module du prélude, sans ses imports relatifs ni `__future__`."""
     texte = (_DOSSIER / f"{module}.py").read_text(encoding="utf-8")
-    return _IMPORT_RELATIF.sub("", texte.replace(_FUTUR, ""))
+    return sans_imports_relatifs(texte, module)
 
 
 #: Le prélude recopié en tête de chaque fichier généré : les modules d'`execution`,
