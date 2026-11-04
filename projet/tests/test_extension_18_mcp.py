@@ -479,3 +479,66 @@ async def test_les_predefinies(client: Client) -> None:
         assert f"`{predefinie.texte}`" in texte_lu, nom
         assert predefinie.arite() in texte_lu, nom
     assert "`arbre[T]` : `tumu[T] | imi[T]" in texte_lu
+
+
+# --- Les prompts ----------------------------------------------------------------------
+
+
+@pytest.mark.anyio
+async def test_les_prompts_sont_decrits(client: Client) -> None:
+    prompts = {p.name: p for p in (await client.list_prompts()).prompts}
+    assert set(prompts) == {"ecrire_programme", "traduire_depuis_python"}
+    for nom, argument in [
+        ("ecrire_programme", "tache"),
+        ("traduire_depuis_python", "code"),
+    ]:
+        prompt = prompts[nom]
+        assert prompt.title and prompt.description, nom
+        assert "\n    " not in prompt.description, nom
+        assert prompt.arguments is not None
+        [decrit] = prompt.arguments
+        assert decrit.name == argument
+        assert decrit.required and decrit.description
+
+
+async def message_du_prompt(client: Client, nom: str, arguments: dict[str, str]) -> str:
+    [message] = (await client.get_prompt(nom, arguments)).messages
+    assert message.role == "user"
+    assert isinstance(message.content, TextContent)
+    return message.content.text
+
+
+@pytest.mark.anyio
+async def test_ecrire_programme(client: Client) -> None:
+    tache = "afficher les 10 premiers nombres de Fibonacci"
+    texte_du_prompt = await message_du_prompt(
+        client, "ecrire_programme", {"tache": tache}
+    )
+    assert tache in texte_du_prompt
+    for attendu in (
+        "upea://specification",
+        "upea://predefinies",
+        "verifier",
+        "executer",
+    ):
+        assert attendu in texte_du_prompt
+    # La démarche : vérifier avant d'exécuter.
+    assert texte_du_prompt.index("verifier") < texte_du_prompt.index("executer")
+
+
+@pytest.mark.anyio
+async def test_traduire_depuis_python(client: Client) -> None:
+    code = "for i in range(3):\n    print(i * i)\n"
+    texte_du_prompt = await message_du_prompt(
+        client, "traduire_depuis_python", {"code": code}
+    )
+    assert f"```python\n{code}```" in texte_du_prompt
+    for attendu in (
+        "upea://specification",
+        "verifier",
+        "executer",
+        "tuu",
+        "dictionnaires",
+        "a < b ma b < c",
+    ):
+        assert attendu in texte_du_prompt

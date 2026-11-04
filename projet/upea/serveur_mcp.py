@@ -129,6 +129,7 @@ def construire_serveur(
     _outils_sans_execution(serveur)
     _outil_executer(serveur, delai)
     _ressources(serveur)
+    _prompts(serveur)
     return serveur
 
 
@@ -405,6 +406,93 @@ def _predefinies() -> str:
         "`aore`) ; `[, x]` est un argument facultatif, et `x...` peut se répéter.\n\n"
         f"## Signatures\n\n{signatures}\n\n## Abréviations\n\n{abreviations}\n"
     )
+
+
+# --- Les prompts ----------------------------------------------------------------------
+
+Tache = Annotated[
+    str,
+    Field(
+        description=(
+            "Ce que le programme doit faire, en langage courant (par exemple : "
+            "« le plus court trajet entre deux îles d'un graphe pondéré »)."
+        )
+    ),
+]
+CodePython = Annotated[str, Field(description="Le programme Python complet.")]
+
+#: La démarche commune aux prompts : apprendre, écrire, vérifier, exécuter.
+DEMARCHE = """\
+Upea est un langage aux mots-clés tahitiens que tu ne connais pas : ne devine pas \
+sa syntaxe. Procède ainsi :
+
+1. Lis la ressource upea://specification en entier. Consulte upea://predefinies \
+pour les fonctions disponibles, et un exemple proche dans upea://exemples (chacun \
+avec sa sortie exacte).
+2. Écris le programme complet.
+3. Passe-le à l'outil verifier. Tant que `valide` est faux, corrige chaque erreur \
+à la ligne et à la colonne indiquées, puis vérifie de nouveau. Tiens compte aussi \
+des avertissements.
+4. Exécute-le avec l'outil executer. Si le statut est une erreur, ou si la sortie \
+n'est pas celle attendue, corrige le programme et reprends à l'étape 3. Si l'outil \
+signale un délai dépassé, cherche une boucle qui ne se termine pas.
+5. Donne le programme final dans un bloc de code, puis la sortie que l'outil \
+executer a réellement produite.
+"""
+
+#: Ce qui change le plus quand on passe de Python à Upea.
+PIEGES_DE_PYTHON = """\
+Les pièges d'une traduction depuis Python :
+- toute variable se déclare avant usage, une seule fois, avec `tuu` (ou `mau` pour \
+une constante) ; on ne redéclare pas un nom encore visible ;
+- les instructions finissent par `;` et les blocs sont entre accolades ; \
+l'indentation ne compte pas ;
+- pas de dictionnaires, ni de fonctions imbriquées, ni de fonctions comme valeurs, \
+ni de récursion croisée ; une fonction (`ohipa`) se déclare au niveau global, avant \
+son premier appel ;
+- les comparaisons ne s'enchaînent pas : `a < b ma b < c` au lieu de `a < b < c` ;
+- `ma`, `anei`, `eiaha` pour and, or, not ; `tia`, `hape`, `aore` pour True, False, \
+None ;
+- `for i in range(a, b)` devient `tataitahi i roto a..b`, `len(x)` devient \
+`roa(x)`, `l.append(x)` devient `amui(l, x)` ;
+- `faaite a, b;` affiche comme `print(a, b)` ; `"a" + parau(1)` pour coller un \
+nombre à un texte ;
+- un programme Upea ne lit ni clavier ni fichier : remplace les entrées par des \
+valeurs écrites dans le programme, et dis-le ;
+- pour un arbre ou un graphe, préfère les structures et les algorithmes d'Upea \
+(`upea { "A" -> "B" : 3 }`, `tumu`, `aifaito`, `dijkstra`, `bfs`…) à une \
+réimplémentation avec des listes.
+"""
+
+
+def _prompts(serveur: MCPServer[None]) -> None:
+    def prompt[F: Callable[..., object]](titre: str) -> Callable[[F], F]:
+        """`serveur.prompt`, décrit par la docstring."""
+
+        def enregistrer(fonction: F) -> F:
+            description = inspect.cleandoc(fonction.__doc__ or "")
+            return serveur.prompt(title=titre, description=description)(fonction)
+
+        return enregistrer
+
+    @prompt("Écrire un programme Upea")
+    def ecrire_programme(tache: Tache) -> str:
+        """Écrire un programme Upea qui accomplit une tâche, en apprenant le langage
+        dans la spécification, puis en le vérifiant (verifier) et en l'exécutant
+        (executer) jusqu'à ce qu'il soit juste."""
+        return f"Écris un programme Upea qui fait ceci :\n\n{tache}\n\n{DEMARCHE}"
+
+    @prompt("Traduire un programme Python en Upea")
+    def traduire_depuis_python(code: CodePython) -> str:
+        """Traduire un programme Python en Upea, qui affiche la même chose, en
+        apprenant le langage dans la spécification, puis en le vérifiant (verifier)
+        et en l'exécutant (executer) jusqu'à ce qu'il soit juste."""
+        fin = "" if code.endswith("\n") else "\n"
+        return (
+            "Traduis ce programme Python en Upea, en gardant ce qu'il affiche :\n\n"
+            f"```python\n{code}{fin}```\n\n{DEMARCHE}\n{PIEGES_DE_PYTHON}\n"
+            "À l'étape 4, compare la sortie à celle du programme Python."
+        )
 
 
 def _delai_depasse(arret: bac_a_sable.DelaiDepasse) -> str:
