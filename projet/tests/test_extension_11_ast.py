@@ -1,6 +1,7 @@
 """Extension 11 : la génération via le module `ast` et `ast.unparse`."""
 
 import ast
+import warnings
 from pathlib import Path
 from types import CodeType
 
@@ -91,6 +92,15 @@ def test_une_erreur_dans_l_arbre_compile_pointe_deja_la_bonne_ligne() -> None:
         executer_arbre(source)
     assert info.value.position is not None
     assert info.value.position.ligne == 2
+
+
+def test_compiler_l_arbre_ne_laisse_passer_aucun_syntaxwarning() -> None:
+    # `(3)[0]`, accepté sans types : CPython avertirait « perhaps you missed a comma? ».
+    with warnings.catch_warnings(record=True) as avertissements:
+        warnings.simplefilter("always")
+        with pytest.raises(ErreurExecution):
+            executer_arbre("faaite (3)[0];", types=False)
+    assert [a for a in avertissements if a.category is SyntaxWarning] == []
 
 
 def test_le_texte_produit_se_relit_avec_la_meme_structure(exemple: Path) -> None:

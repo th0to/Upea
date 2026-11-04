@@ -109,7 +109,7 @@ def executer_code(
     code: str | CodeType, sourcemap: SourceMap, espace: dict[str, object] | None = None
 ) -> None:
     """Exécute du code généré ; une exception Python devient une `ErreurExecution`."""
-    objet = code if isinstance(code, CodeType) else compile(code, NOM_FICHIER, "exec")
+    objet = code if isinstance(code, CodeType) else compiler_module(code, NOM_FICHIER)
     try:
         exec(objet, nouvel_espace() if espace is None else espace)
     except Exception as exc:

@@ -9,7 +9,6 @@ hasard par `hypothesis` (les invariants des arbres ordonnés sont dans l'extensi
 import io
 from contextlib import redirect_stdout
 
-import pytest
 from hypothesis import given, settings
 
 from generateurs import GRAPHES, ORDONNES, PROGRAMMES, TUMU
@@ -22,10 +21,6 @@ from upea.parser import parse
 #: avec le backend ast) : on en tire moins que par défaut, et l'on ne borne pas la
 #: durée d'un seul.
 REGLAGES = settings(max_examples=30, deadline=None)
-
-# `(3)[0]` (accepté avec --sans-types) fait émettre à CPython un SyntaxWarning en
-# compilant le code généré. Ce n'est pas ce que vérifient ces propriétés.
-pytestmark = pytest.mark.filterwarnings("ignore::SyntaxWarning")
 
 
 def resultat(

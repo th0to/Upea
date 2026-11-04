@@ -4,6 +4,7 @@ import inspect
 import os
 import subprocess
 import sys
+import warnings
 from collections.abc import Generator, Iterator
 from pathlib import Path
 
@@ -223,6 +224,31 @@ def test_une_erreur_redirigee_garde_ses_caracteres(programme: Path) -> None:
     assert '"ʻupeʻa" + 1' in resultat.stderr
 
 
+#: Accepté sans types, ce programme fait émettre à CPython, quand il compile le
+#: Python généré, un SyntaxWarning (« perhaps you missed a comma? »).
+INDICE_DE_CONSTANTE = "faaite (3)[0];"
+
+
+def test_run_n_affiche_aucun_avertissement_de_python(programme: Path) -> None:
+    resultat = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "upea",
+            "run",
+            "--sans-types",
+            ecrire(programme, INDICE_DE_CONSTANTE),
+        ],
+        cwd=PROJET,
+        env={**os.environ, "PYTHONPATH": str(PROJET), "PYTHONIOENCODING": "utf-8"},
+        capture_output=True,
+        encoding="utf-8",
+    )
+    assert resultat.returncode == ERREUR_EXECUTION
+    assert "on ne peut pas indexer un numera" in resultat.stderr
+    assert "Warning" not in resultat.stderr, resultat.stderr
+
+
 # --- Le REPL --------------------------------------------------------------------------
 
 
@@ -279,6 +305,16 @@ def test_le_repl_garde_les_fonctions_et_les_globales(session: Session) -> None:
     session.send("f();")
     session.send("f();")
     assert session.send("n").sortie == "2\n"
+
+
+def test_le_repl_n_affiche_aucun_avertissement_de_python() -> None:
+    session = repl(types=False)
+    next(session)
+    with warnings.catch_warnings(record=True) as avertissements:
+        warnings.simplefilter("always")
+        reponse = session.send(INDICE_DE_CONSTANTE)
+    assert "on ne peut pas indexer un numera" in reponse.sortie
+    assert [a for a in avertissements if a.category is SyntaxWarning] == []
 
 
 def test_le_repl_affiche_un_litteral_de_graphe(session: Session) -> None:

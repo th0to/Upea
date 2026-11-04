@@ -5,6 +5,7 @@ avec le module `ast`. `ast.unparse` en tire un code aux parenthèses minimales, 
 from __future__ import annotations
 
 import ast
+import warnings
 from itertools import chain
 from types import CodeType
 from typing import assert_never
@@ -320,9 +321,16 @@ class GenerateurAst:
         return Sortie(code, SourceMap(lignes=lignes))
 
 
-def compiler_module(module: ast.Module, nom_fichier: str) -> CodeType:
-    """Compile directement l'arbre Python, sans passer par le texte."""
-    return compile(module, nom_fichier, "exec")
+def compiler_module(module: ast.Module | str, nom_fichier: str) -> CodeType:
+    """Compile le code généré : l'arbre Python directement, ou son texte.
+
+    Les `SyntaxWarning` de CPython (`(3)[0]` : « perhaps you missed a comma? »)
+    sont tus : le programme a déjà été vérifié, et l'erreur, s'il y en a une,
+    arrivera à l'exécution, traduite. Les autres avertissements passent.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        return compile(module, nom_fichier, "exec")
 
 
 def correspondance_identite(module: ast.Module) -> SourceMap:
