@@ -17,6 +17,7 @@ from .compilateur import (
     transpiler,
 )
 from .erreurs import ErreurExecution, ErreursMultiples, ErreurUpea, formater
+from .execution.base import _en_utf8
 from .repl import repl
 
 OK, ERREUR_COMPILATION, ERREUR_USAGE, ERREUR_EXECUTION = 0, 1, 2, 3
@@ -211,6 +212,10 @@ def construire_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # Les dessins et les lignes de source citées dans les erreurs ne passent pas
+    # toujours dans l'encodage d'une sortie redirigée (cp1252 sous Windows).
+    _en_utf8(sys.stdout)
+    _en_utf8(sys.stderr)
     parser = construire_parser()
     try:
         args = parser.parse_args(argv)

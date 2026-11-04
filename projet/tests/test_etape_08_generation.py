@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from outils import lancer, lire
+from outils import EXEMPLES, lancer, lire
 from upea.compilateur import compiler, transpiler
 from upea.emetteur import Emetteur
 from upea.generateur import GenerateurPython
@@ -43,6 +43,26 @@ def test_le_fichier_genere_est_autonome(exemple: Path, tmp_path: Path) -> None:
         env={**os.environ, "PYTHONIOENCODING": "utf-8"},
         check=True,
     )
+    assert resultat.stdout.replace("\r\n", "\n") == lire(
+        exemple.with_suffix(".attendu")
+    )
+
+
+def test_le_fichier_genere_ecrit_ses_dessins_dans_une_sortie_cp1252(
+    tmp_path: Path,
+) -> None:
+    """Sous Windows, une sortie redirigée est en cp1252, qui n'a pas `┌─┴─┐` :
+    le prélude passe la sortie standard en UTF-8."""
+    exemple = EXEMPLES / "10_hohoa.upea"
+    fichier = tmp_path / "programme.py"
+    fichier.write_text(transpiler(lire(exemple)).code, encoding="utf-8")
+    resultat = subprocess.run(
+        [sys.executable, str(fichier)],
+        capture_output=True,
+        encoding="utf-8",
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+    )
+    assert resultat.returncode == 0, resultat.stderr
     assert resultat.stdout.replace("\r\n", "\n") == lire(
         exemple.with_suffix(".attendu")
     )

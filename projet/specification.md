@@ -321,6 +321,7 @@ faaite aifaito [1, 2, 3, 4, 5, 6, 7];      faaite iles;
 - Dans les dessins, les textes n'ont pas de guillemets ; `(R)` / `(N)` marque la couleur d'un nœud rouge-noir, et `[a | b]` un nœud d'arbre B.
 - Un **graphe** se dessine en liste d'adjacence : un en-tête (nombre de nœuds et d'arcs), puis une ligne par nœud, dans l'ordre d'apparition, avec ses successeurs et le poids des arcs qui ne valent pas 1 ; `·` marque un nœud sans successeur.
 - **Couleurs** : quand la sortie est un terminal, `faaite` d'une structure seule colore son dessin (nœuds rouges du rouge-noir en rouge, poids en jaune, traits atténués). La variable d'environnement `NO_COLOR` les supprime et `FORCE_COLOR` les impose. Une sortie redirigée vers un fichier n'en a jamais, et les textes rendus par les fonctions ci-dessous non plus.
+- La sortie (et la sortie d'erreur) est toujours écrite en **UTF-8**, même redirigée vers un fichier : sous Windows, l'encodage par défaut d'une sortie redirigée, cp1252, n'a pas les traits des dessins.
 
 | Fonction | Ce qu'elle rend (un `parau`) |
 |---|---|
@@ -511,7 +512,7 @@ Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible),
 - Pas de dictionnaires, de fonctions imbriquées ni de fonctions comme valeurs ; pas de récursion croisée.
 - Pas de lecture au clavier, ni de fichiers, ni de réseau : un programme Upea ne touche pas au système.
 - Un `tumu` a des enfants ordonnés et en nombre quelconque ; un arbre binaire « avec un trou » se représente avec une convention du programmeur (ou avec un `imi`).
-- Les dessins comptent un caractère par colonne : des clés en caractères larges (idéogrammes, emojis) décalent les traits. Les couleurs supposent un terminal qui comprend les codes ANSI (Windows Terminal, le terminal de VS Code ; pas l'ancienne console de Windows).
+- Les dessins comptent un caractère par colonne : des clés en caractères larges (idéogrammes, emojis) décalent les traits. Les couleurs supposent un terminal qui comprend les codes ANSI (Windows Terminal, le terminal de VS Code ; pas l'ancienne console de Windows). Sous Windows PowerShell 5.1, `>` réencode la sortie d'un programme avec la page de code de la console : les traits des dessins y deviennent illisibles (rien ne plante). La redirection de `cmd`, ou `[Console]::OutputEncoding = [Text.Encoding]::UTF8` avant la commande, garde l'UTF-8.
 - Le rouge-noir est la variante « penchée à gauche » (un lien rouge est toujours à gauche) : ses formes diffèrent de celles d'un rouge-noir classique, ses garanties sont les mêmes.
 - Les arbres ordonnés n'ont pas de champs : on ne manipule que leurs clés, par les fonctions prédéfinies. Les formes (rotations, éclatements) se voient avec `hohoa`.
 - `ma` et `anei` sur des valeurs non booléennes suivent Python (`hape anei 3` vaut `3`), de même que `tia == 1` (vaut `tia`) : le vérificateur de types refuse ces mélanges quand il connaît les types.

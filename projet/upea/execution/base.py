@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io as _io
 import os as _os
 import sys as _sys
 from collections.abc import Callable as _Callable
@@ -200,6 +201,20 @@ def _couleurs_actives() -> bool:
     if _os.environ.get("FORCE_COLOR"):
         return True
     return _sys.stdout.isatty()
+
+
+def _en_utf8(flux: object) -> None:
+    """Passe un flux de texte en UTF-8. Sous Windows, une sortie redirigée vers un
+    fichier est en cp1252, qui n'a ni les traits des dessins (`┌─┴─┐`, `→`) ni
+    bien des lettres (`ʻ`) : `print` y lèverait `UnicodeEncodeError`."""
+    if isinstance(flux, _io.TextIOWrapper) and flux.encoding.lower() not in (
+        "utf-8",
+        "utf8",
+    ):
+        flux.reconfigure(encoding="utf-8")
+
+
+_en_utf8(_sys.stdout)
 
 
 def _affiche(*valeurs: object) -> None:

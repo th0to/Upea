@@ -195,6 +195,34 @@ def test_python_m_upea_rend_le_code_d_erreur(programme: Path) -> None:
     assert "indice hors limites" in resultat.stderr
 
 
+def lancer_en_cp1252(*arguments: str) -> subprocess.CompletedProcess[str]:
+    """`python -m upea …` dont la sortie est redirigée vers un fichier sous Windows :
+    l'encodage par défaut est alors cp1252, qui n'a ni `┌─┴─┐` ni `ʻ`."""
+    return subprocess.run(
+        [sys.executable, "-m", "upea", *arguments],
+        cwd=PROJET,
+        env={**os.environ, "PYTHONPATH": str(PROJET), "PYTHONIOENCODING": "cp1252"},
+        capture_output=True,
+        encoding="utf-8",
+    )
+
+
+def test_une_sortie_redirigee_recoit_les_dessins_en_utf8() -> None:
+    exemple = EXEMPLES / "10_hohoa.upea"
+    resultat = lancer_en_cp1252("run", str(exemple))
+    assert resultat.returncode == OK, resultat.stderr
+    attendu = lire(exemple.with_suffix(".attendu"))
+    assert resultat.stdout.replace("\r\n", "\n") == attendu
+
+
+def test_une_erreur_redirigee_garde_ses_caracteres(programme: Path) -> None:
+    source = 'faaite "ʻupeʻa" + 1;'
+    resultat = lancer_en_cp1252("run", "--sans-types", ecrire(programme, source))
+    assert resultat.returncode == ERREUR_EXECUTION
+    assert "opération '+' impossible" in resultat.stderr
+    assert '"ʻupeʻa" + 1' in resultat.stderr
+
+
 # --- Le REPL --------------------------------------------------------------------------
 
 
