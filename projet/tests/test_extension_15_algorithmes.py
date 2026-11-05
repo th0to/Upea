@@ -155,6 +155,10 @@ def test_prim_et_kruskal_ont_le_meme_poids(graine: int) -> None:
     # Une forêt couvrante : autant de nœuds, une arête de moins par composante.
     aretes = len(k.arcs()) // 2
     assert aretes == len(k._arcs) - len(_composantes(k))
+    # … et les nœuds et les composantes du graphe de départ (M3).
+    for couvrant in (k, p):
+        assert set(couvrant._arcs) == set(g._arcs)
+        assert len(_composantes(couvrant)) == len(_composantes(g))
 
 
 def test_kruskal_prend_le_poids_le_plus_petit_des_deux_sens() -> None:

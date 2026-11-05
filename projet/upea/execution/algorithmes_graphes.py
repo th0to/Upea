@@ -308,11 +308,15 @@ class _Ensembles:
         return True
 
 
-def _couvrant(aretes: list[tuple[object, object, _Poids]]) -> _Upea:
+def _couvrant(graphe: _Upea, aretes: list[tuple[object, object, _Poids]]) -> _Upea:
+    """La forêt de ces arêtes, puis les nœuds du graphe qu'aucune ne touche (dans
+    l'ordre d'apparition) : une forêt couvrante couvre tous les nœuds."""
     arbre = _Upea()
     for a, b, poids in aretes:
         arbre.relier(a, b, poids)
         arbre.relier(b, a, poids)
+    for noeud in graphe._arcs:
+        arbre.ajouter(noeud)
     return arbre
 
 
@@ -322,7 +326,7 @@ def _kruskal(graphe: _Upea) -> _Upea:
     ensembles = _Ensembles()
     # `sorted` est stable : à poids égal, l'ordre d'apparition des arêtes décide.
     aretes = sorted(_aretes_non_orientees(graphe), key=lambda arete: arete[2])
-    return _couvrant([(a, b, p) for a, b, p in aretes if ensembles.unir(a, b)])
+    return _couvrant(graphe, [(a, b, p) for a, b, p in aretes if ensembles.unir(a, b)])
 
 
 @_sur_graphe()
@@ -351,7 +355,7 @@ def _prim(graphe: _Upea) -> _Upea:
             for v, p in voisins[b]:
                 if v not in atteints:
                     _heapq.heappush(tas, (p, next(ordre), b, v))
-    return _couvrant(choisies)
+    return _couvrant(graphe, choisies)
 
 
 @_sur_graphe(1, 2)
