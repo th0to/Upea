@@ -22,6 +22,12 @@ _C = _TypeVar("_C", bound=type)
 _PROFONDEUR_MAX = 20_000
 _sys.setrecursionlimit(max(_sys.getrecursionlimit(), _PROFONDEUR_MAX))
 
+# Les entiers d'Upea ont une précision illimitée, à l'affichage aussi : Python refuse
+# par défaut de convertir en texte un entier de plus de 4 300 chiffres. Cette garde
+# vise les serveurs qui convertissent des nombres reçus d'inconnus ; ici, un million
+# de chiffres se convertit en moins d'une seconde.
+_sys.set_int_max_str_digits(0)
+
 
 class _Erreur(Exception):
     """Une erreur d'exécution dont le message est déjà rédigé pour l'utilisateur."""

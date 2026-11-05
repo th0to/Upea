@@ -3,6 +3,7 @@ récursive pour les instructions, avec récupération d'erreurs (étape 6)."""
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Iterable
 from enum import IntEnum
 from typing import NoReturn, get_args
@@ -532,6 +533,11 @@ class Parser:
 
 
 # --- Les règles des expressions ------------------------------------------------
+
+
+# Un littéral entier est converti ici, avant tout prélude : la limite de 4 300
+# chiffres de Python (voir `execution/base.py`) est levée aussi pour le compilateur.
+sys.set_int_max_str_digits(0)
 
 
 @prefixe(T.ENTIER)
