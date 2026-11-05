@@ -218,60 +218,67 @@ def _plafonner_la_memoire(octets: int) -> bool:
 
 def _job_windows(octets: int) -> bool:
     """Place ce processus dans un *job object* qui limite sa mémoire."""
-    import ctypes
-    from ctypes import wintypes
+    # Jamais appelée ailleurs que sous Windows : ce test sert à mypy, qui, sous
+    # Linux ou macOS, ne connaît pas ctypes.WinDLL et saute alors le `else`. Le
+    # `else` est nécessaire : du code après le `return` serait « unreachable »
+    # (warn_unreachable).
+    if sys.platform != "win32":
+        return False
+    else:
+        import ctypes
+        from ctypes import wintypes
 
-    class Limites(ctypes.Structure):  # JOBOBJECT_BASIC_LIMIT_INFORMATION
-        _fields_ = [
-            ("PerProcessUserTimeLimit", ctypes.c_int64),
-            ("PerJobUserTimeLimit", ctypes.c_int64),
-            ("LimitFlags", wintypes.DWORD),
-            ("MinimumWorkingSetSize", ctypes.c_size_t),
-            ("MaximumWorkingSetSize", ctypes.c_size_t),
-            ("ActiveProcessLimit", wintypes.DWORD),
-            ("Affinity", ctypes.c_size_t),
-            ("PriorityClass", wintypes.DWORD),
-            ("SchedulingClass", wintypes.DWORD),
+        class Limites(ctypes.Structure):  # JOBOBJECT_BASIC_LIMIT_INFORMATION
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_int64),
+                ("PerJobUserTimeLimit", ctypes.c_int64),
+                ("LimitFlags", wintypes.DWORD),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", wintypes.DWORD),
+                ("SchedulingClass", wintypes.DWORD),
+            ]
+
+        class LimitesEtendues(ctypes.Structure):  # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+            _fields_ = [
+                ("Basic", Limites),
+                ("IoInfo", ctypes.c_uint64 * 6),  # IO_COUNTERS
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        job_object_limit_process_memory = 0x100
+        job_object_extended_limit_information = 9
+        poignee = wintypes.HANDLE
+        noyau = ctypes.WinDLL("kernel32", use_last_error=True)
+        noyau.CreateJobObjectW.restype = poignee
+        noyau.GetCurrentProcess.restype = poignee  # une pseudo-poignée : -1
+        noyau.SetInformationJobObject.argtypes = [
+            poignee,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
         ]
-
-    class LimitesEtendues(ctypes.Structure):  # JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-        _fields_ = [
-            ("Basic", Limites),
-            ("IoInfo", ctypes.c_uint64 * 6),  # IO_COUNTERS
-            ("ProcessMemoryLimit", ctypes.c_size_t),
-            ("JobMemoryLimit", ctypes.c_size_t),
-            ("PeakProcessMemoryUsed", ctypes.c_size_t),
-            ("PeakJobMemoryUsed", ctypes.c_size_t),
-        ]
-
-    job_object_limit_process_memory = 0x100
-    job_object_extended_limit_information = 9
-    poignee = wintypes.HANDLE
-    noyau = ctypes.WinDLL("kernel32", use_last_error=True)
-    noyau.CreateJobObjectW.restype = poignee
-    noyau.GetCurrentProcess.restype = poignee  # une pseudo-poignée : -1
-    noyau.SetInformationJobObject.argtypes = [
-        poignee,
-        ctypes.c_int,
-        ctypes.c_void_p,
-        wintypes.DWORD,
-    ]
-    noyau.AssignProcessToJobObject.argtypes = [poignee, poignee]
-    limites = LimitesEtendues()
-    limites.Basic.LimitFlags = job_object_limit_process_memory
-    limites.ProcessMemoryLimit = octets
-    # La poignée du job reste ouverte jusqu'à la fin du processus.
-    job = noyau.CreateJobObjectW(None, None)
-    return bool(
-        job
-        and noyau.SetInformationJobObject(
-            job,
-            job_object_extended_limit_information,
-            ctypes.byref(limites),
-            ctypes.sizeof(limites),
+        noyau.AssignProcessToJobObject.argtypes = [poignee, poignee]
+        limites = LimitesEtendues()
+        limites.Basic.LimitFlags = job_object_limit_process_memory
+        limites.ProcessMemoryLimit = octets
+        # La poignée du job reste ouverte jusqu'à la fin du processus.
+        job = noyau.CreateJobObjectW(None, None)
+        return bool(
+            job
+            and noyau.SetInformationJobObject(
+                job,
+                job_object_extended_limit_information,
+                ctypes.byref(limites),
+                ctypes.sizeof(limites),
+            )
+            and noyau.AssignProcessToJobObject(job, noyau.GetCurrentProcess())
         )
-        and noyau.AssignProcessToJobObject(job, noyau.GetCurrentProcess())
-    )
 
 
 def _executer_ici(

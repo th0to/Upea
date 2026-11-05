@@ -1,0 +1,39 @@
+# Tests, typage et style, sous Windows et sous Linux, à chaque push et pull request.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Une plateforme qui échoue n'arrête pas l'autre : on voit les deux résultats.
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      # Actions épinglées par commit, comme le recommande la documentation de setup-uv.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Installer uv et Python 3.12
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: "3.12"
+
+      - name: Installer l'environnement (outils de développement et SDK MCP)
+        run: uv sync
+
+      - name: pytest
+        run: uv run pytest projet
+
+      - name: mypy
+        run: uv run mypy projet
+
+      - name: ruff
+        run: uv run ruff check projet

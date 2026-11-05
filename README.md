@@ -166,3 +166,6 @@ uv run ruff check projet      # style
   signalée en termes d'Upea, à sa ligne.
 - Le serveur MCP est testé avec un client en mémoire, et de bout en bout en stdio :
   rien d'autre que le JSON-RPC n'y passe sur la sortie standard.
+- GitHub Actions ([`tests.yml`](.github/workflows/tests.yml)) lance pytest, mypy
+  et ruff sous Windows et sous Linux, à chaque push et pull request ; mypy passe
+  aussi avec `--platform darwin` (macOS).
