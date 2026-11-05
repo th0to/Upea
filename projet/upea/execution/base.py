@@ -15,6 +15,13 @@ _P = _ParamSpec("_P")
 _R = _TypeVar("_R")
 _C = _TypeVar("_C", bound=type)
 
+#: Le nombre d'appels qu'un programme peut imbriquer (`specification.md`, *Limites
+#: assumées*) : de quoi parcourir récursivement un ABR dégénéré de 10 000 clés. La
+#: limite de Python, 1 000 par défaut, est relevée ici, une seule fois : le prélude
+#: est exécuté par `run`, par le REPL et par le fichier autonome.
+_PROFONDEUR_MAX = 20_000
+_sys.setrecursionlimit(max(_sys.getrecursionlimit(), _PROFONDEUR_MAX))
+
 
 class _Erreur(Exception):
     """Une erreur d'exécution dont le message est déjà rédigé pour l'utilisateur."""

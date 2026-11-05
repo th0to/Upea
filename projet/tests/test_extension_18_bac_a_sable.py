@@ -58,7 +58,9 @@ def test_une_erreur_d_execution_et_sa_ligne_upea() -> None:
 def test_une_recursion_sans_fin() -> None:
     resultat = executer("ohipa f(n) { hoi f(n + 1); }\nfaaite f(0);\n")
     assert resultat.statut == "erreur_execution"
-    assert resultat.diagnostics[-1].message == "récursion trop profonde"
+    assert resultat.diagnostics[-1].message == (
+        "récursion trop profonde (plus de 20 000 appels imbriqués)"
+    )
 
 
 def test_les_avertissements_accompagnent_le_resultat() -> None:

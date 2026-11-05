@@ -78,6 +78,9 @@ lot est l'identifiant du rapport, cité dans le message du commit.
 | Lot | Endroit | Changement | Raison |
 |---|---|---|---|
 | L1 | *Limites assumées* | une puce ajoutée : 90 blocs imbriqués, 20 boucles imbriquées, 150 niveaux dans une expression ; au-delà, erreur de syntaxe | `check` acceptait des programmes que Python refusait ensuite de compiler : `run` affichait un traceback, et le REPL s'arrêtait. Ce sont les limites de CPython, désormais vérifiées par le parser |
+| M1 | tableau des erreurs d'exécution | la ligne « récursion sans fin » devient « une fonction qui s'appelle plus de 20 000 fois en chaîne », avec le message « récursion trop profonde (plus de 20 000 appels imbriqués) » | la récursion d'une fonction s'arrêtait vers 990 appels, même finie et juste (un ABR en peigne de 1 000 clés) ; la limite est relevée à 20 000 dans le prélude |
+| M1 | *Limites assumées* | une puce ajoutée : 20 000 appels imbriqués au plus | écrire la nouvelle limite |
+| M1 | *Limites assumées* | les listes imbriquées : « sur plus d'un millier de niveaux » devient « leur affichage s'arrête vers un millier de niveaux, et leur comparaison vers trois mille » | l'affirmation était fausse (l'affichage s'arrêtait à 247 niveaux) ; seuils mesurés après M1 : 995 à 997 pour l'affichage, 2 992 pour la comparaison |
 
 ## Outils Python mobilisés (refactorisation)
 

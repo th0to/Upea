@@ -20,6 +20,7 @@ from .erreurs import (
     ErreurUpea,
     Position,
 )
+from .execution.base import _PROFONDEUR_MAX
 from .formateur import Formateur
 from .generateur import GenerateurPython
 from .generateur_ast import GenerateurAst, compiler_module, correspondance_identite
@@ -32,6 +33,13 @@ from .semantique import Analyse, analyser
 from .sourcemap import SourceMap
 from .tokens import Token
 from .typage import PYTHON_COMPOSES
+
+#: Le message d'une récursion du programme qui dépasse la limite du prélude.
+RECURSION_PROFONDE = (
+    f"récursion trop profonde (plus de {_PROFONDEUR_MAX:,} appels imbriqués)".replace(
+        ",", " "
+    )
+)
 
 #: Le nom de fichier du code généré, pour reconnaître ses lignes dans un traceback.
 NOM_FICHIER = "<upea>"
@@ -171,9 +179,14 @@ def executer_code(
     try:
         exec(objet, nouvel_espace() if espace is None else espace)
     except Exception as exc:
-        ligne = ligne_fautive(exc, sourcemap)
-        position = None if ligne is None else Position(ligne, 0)
-        raise ErreurExecution(traduire(exc), position) from exc
+        lignes = lignes_du_programme(exc, sourcemap)
+        position = Position(lignes[-1], 0) if lignes else None
+        message = traduire(exc)
+        # Une récursion du programme remplit la pile de ses propres appels ; une
+        # liste trop imbriquée, elle, déborde dans le prélude (`specification.md`).
+        if isinstance(exc, RecursionError) and len(lignes) > _PROFONDEUR_MAX // 2:
+            message = RECURSION_PROFONDE
+        raise ErreurExecution(message, position) from exc
 
 
 def _compiler_le_python(code: str, sourcemap: SourceMap) -> CodeType:
@@ -190,14 +203,23 @@ def _compiler_le_python(code: str, sourcemap: SourceMap) -> CodeType:
         raise ErreursMultiples([ErreurSyntaxe(TROP_IMBRIQUE, position)]) from None
 
 
+def lignes_du_programme(exc: BaseException, sourcemap: SourceMap) -> list[int]:
+    """Les lignes Upea des frames du programme dans le traceback de `exc`, de la plus
+    externe à la plus profonde (sans `extract_tb`, qui lirait 20 000 frames en détail
+    pour une récursion trop profonde)."""
+    lignes: list[int] = []
+    for frame, numero in traceback.walk_tb(exc.__traceback__):
+        if frame.f_code.co_filename == NOM_FICHIER and numero is not None:
+            ligne = sourcemap.ligne_source(numero)
+            if ligne is not None:
+                lignes.append(ligne)
+    return lignes
+
+
 def ligne_fautive(exc: BaseException, sourcemap: SourceMap) -> int | None:
     """La ligne Upea de la frame la plus profonde qui provient du programme."""
-    for frame in reversed(traceback.extract_tb(exc.__traceback__)):
-        if frame.filename == NOM_FICHIER and frame.lineno is not None:
-            ligne = sourcemap.ligne_source(frame.lineno)
-            if ligne is not None:
-                return ligne
-    return None
+    lignes = lignes_du_programme(exc, sourcemap)
+    return lignes[-1] if lignes else None
 
 
 # --- Traduction des exceptions Python -------------------------------------------------

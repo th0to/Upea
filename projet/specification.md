@@ -408,7 +408,7 @@ Le programme s'arrête, et l'utilisateur voit la **ligne Upea** en cause, jamais
 | `amui(t.amaa, 5)` | les branches d'un tumu doivent être des tumu, pas un numera |
 | `amui(t.amaa, t)` | un tumu ne peut pas devenir sa propre branche, même indirectement |
 | `amui(l, l); faaite l;` | tapura impossible à écrire : la valeur se contient elle-même |
-| récursion sans fin | récursion trop profonde |
+| une fonction qui s'appelle plus de 20 000 fois en chaîne (récursion sans fin) | récursion trop profonde (plus de 20 000 appels imbriqués) |
 | `iriti(ahu [])` | iriti : le ahu est vide |
 | `amui(aifaito [1], "a")` | clés incomparables dans un aifaito : numera et parau |
 | `dijkstra(upea { 1 -> 2 : -1 }, 1, 2)` | dijkstra : poids négatif : utilisez bellman_ford |
@@ -523,5 +523,6 @@ Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible),
 - Le formateur perd les commentaires, qui ne sont pas dans l'arbre syntaxique.
 - Les imbrications ont les limites de Python : au plus 90 blocs `{ }` imbriqués (le corps d'une fonction compte), 20 boucles `tamau` ou `tataitahi` imbriquées, et 150 niveaux dans une expression (chaque parenthèse, opération, appel, liste ou indice en ajoute un ; un littéral `upea` en ajoute trois, un arbre ordonné deux). Au-delà, c'est une erreur de syntaxe, que `check` signale comme `run`.
 - Les colonnes d'une erreur d'exécution ne sont pas connues : seule la ligne est indiquée.
-- Les arbres et les graphes, même profonds de plusieurs milliers de nœuds, se parcourent, se comparent et s'écrivent sans limite de profondeur. Les listes imbriquées sur plus d'un millier de niveaux (`[[[…]]]`), non : leur affichage et leur comparaison s'arrêtent sur « récursion trop profonde ».
+- Une fonction peut s'appeler elle-même jusqu'à 20 000 fois en chaîne, de quoi parcourir récursivement un ABR dégénéré de 10 000 clés. Au-delà, l'exécution s'arrête sur « récursion trop profonde (plus de 20 000 appels imbriqués) ».
+- Les arbres et les graphes, même profonds de plusieurs milliers de nœuds, se parcourent, se comparent et s'écrivent sans limite de profondeur. Les listes imbriquées (`[[[…]]]`), non : leur affichage s'arrête vers un millier de niveaux, et leur comparaison vers trois mille, sur « récursion trop profonde ».
 - Le fichier produit par `transpile` est autonome, mais brut : lancé par `python sortie.py`, il affiche ses erreurs d'exécution en traceback Python, et CPython peut y écrire ses propres avertissements (un `SyntaxWarning` pour `(3)[0]`, accepté avec `--sans-types`). Seuls `run` et le REPL traduisent les erreurs en termes d'Upea.
