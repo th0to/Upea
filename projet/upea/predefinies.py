@@ -158,6 +158,7 @@ ARBRE = lie(ARBRES, "arbre", "arbre")
 ORDONNE = lie(ORDONNES, "arbre ordonné (imi, aifaito, uteere, pupu, ahu)", "ordonne")
 COLLECTION = lie(_LISTE_OU_ORDONNE, "tapura ou arbre ordonné", "collection")
 RETIRABLE = lie(_RETIRABLES, "tapura, upea ou arbre ordonné", "retirable")
+AJOUTABLE = lie(_RETIRABLES, "tapura, upea ou arbre ordonné", "ajoutable")
 STRUCTURE = lie(_STRUCTURES, "arbre ou upea", "structure")
 NOEUD = comme_t("nœud")
 VALEUR = comme_t("élément")
@@ -244,7 +245,7 @@ signature("parau", TOUT, retour=fixe(PARAU))
 
 # --- Collections : listes et arbres ordonnés ------------------------------------------
 
-signature("amui", COLLECTION, VALEUR, retour=fixe(AORE))
+signature("amui", AJOUTABLE, VALEUR, retour=fixe(AORE))
 signature("tatara", RETIRABLE, VALEUR, retour=fixe(TIAHAPE))
 signature("iriti", ORDONNE, retour=identite)
 signature("iti", COLLECTION, retour=identite)

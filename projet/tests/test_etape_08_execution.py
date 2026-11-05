@@ -205,7 +205,7 @@ def test_le_prelude_fait_ce_que_dit_la_specification(source: str, sortie: str) -
         ("tuu t = tumu(1);\nt.amaa = 3;\nfaaite roa(t);", "forment une tapura", 2),
         (
             "faaite amui(3, 1);",
-            "amui : tapura ou arbre ordonné attendu, numera reçu",
+            "amui : tapura, upea ou arbre ordonné attendu, numera reçu",
             1,
         ),
         ("faaite teitei([1]);", "teitei : arbre attendu, tapura reçu", 1),

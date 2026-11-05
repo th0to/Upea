@@ -261,7 +261,7 @@ Erreurs d'exécution : `mai` sur autre chose qu'un graphe ; nœud de départ abs
 
 - Un graphe est **orienté** et **pondéré**. Ses nœuds sont des textes ou des entiers (ou des décimaux), jamais des listes, des arbres ou des booléens.
 - `a -> b` ajoute un arc de `a` vers `b`, `a <-> b` ajoute les deux arcs. `: p` donne un poids à l'arc ; sans poids, il vaut `1`. Un poids est un nombre, éventuellement négatif (seuls `dijkstra`, `ea` et `edmonds_karp` refusent les poids négatifs).
-- Un nœud existe dès qu'un arc le touche, ou dès qu'il est écrit seul dans le littéral (`upea { "Rangiroa" }`) ; les nœuds sont rangés dans l'ordre où ils apparaissent. Ajouter un arc qui existe déjà remplace son poids.
+- Un nœud existe dès qu'un arc le touche, dès qu'il est écrit seul dans le littéral (`upea { "Rangiroa" }`), ou dès que `amui(g, v)` l'ajoute ; les nœuds sont rangés dans l'ordre où ils apparaissent. Ajouter un arc qui existe déjà remplace son poids.
 - Deux nœuds égaux au sens de `==` sont **le même nœud** : `1` et `1.0` ne font qu'un, écrit comme à sa première apparition (`upea { 1.0 -> 2, 1 -> 3 }` s'écrit `upea { 1.0 -> 2, 1.0 -> 3 }`). C'est la règle de tout Upea, où `1 == 1.0` vaut `tia` : `1.0 roto [1]` vaut `tia`, et `aifaito [1, 1.0]` n'a qu'une clé.
 - `v roto g` vaut `tia` si `v` est un nœud de `g`.
 - `==` compare deux graphes par leurs nœuds et leurs arcs (poids compris), quel que soit l'ordre d'ajout.
@@ -336,7 +336,7 @@ faaite aifaito [1, 2, 3, 4, 5, 6, 7];      faaite iles;
 | Fonction | Ce qu'elle fait |
 |---|---|
 | `roa(x)` | *roa*, long : longueur d'une liste ou d'un texte, nombre de nœuds d'un `tumu`, de clés d'un arbre ordonné, de nœuds d'un graphe |
-| `amui(c, x)` | *ʻāmui*, réunir : ajoute `x` à la fin de la liste `c`, ou dans l'arbre ordonné `c` ; renvoie `aore` |
+| `amui(c, x)` | *ʻāmui*, réunir : ajoute `x` à la fin de la liste `c`, dans l'arbre ordonné `c`, ou comme nœud du graphe `c` (sans effet s'il y est déjà) ; renvoie `aore` |
 | `tatara(c, x)` | *tatara*, défaire : retire `x` d'une liste (sa première occurrence), d'un arbre ordonné, ou d'un graphe (le nœud et ses arcs) ; renvoie `tia` si `x` y était |
 | `iriti(c)` | *ʻiriti*, arracher : retire et rend le sommet d'un tas, ou la plus petite clé d'un arbre ordonné |
 | `iti(c)`, `rahi(c)` | *iti*, petit ; *rahi*, grand : la plus petite, la plus grande valeur d'une liste ou d'un arbre ordonné |

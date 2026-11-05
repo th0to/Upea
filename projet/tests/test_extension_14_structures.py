@@ -251,7 +251,7 @@ def test_la_variable_d_une_boucle_suit_l_ordre_trie_ou_l_ordre_choisi() -> None:
         ("faaite iriti([1]);", "iriti : arbre ordonné attendu, tapura reçu"),
         (
             "faaite amui(tumu(1), 2);",
-            "amui : tapura ou arbre ordonné attendu, tumu reçu",
+            "amui : tapura, upea ou arbre ordonné attendu, tumu reçu",
         ),
         (
             "tataitahi x roto aifaito [1] mai 1 { }",

@@ -15,7 +15,7 @@ from upea.predefinies import ABREVIATIONS, PREDEFINIES
         ("tarjan", "tarjan(upea[T]) -> tapura[tapura[T]]"),
         ("floyd_warshall", "floyd_warshall(upea[T]) -> upea[T]"),
         ("iriti", "iriti(ordonne[T]) -> T"),
-        ("amui", "amui(collection[T], T) -> aore"),
+        ("amui", "amui(ajoutable[T], T) -> aore"),
         ("taati", "taati(upea[T], T, T[, numera | tuhaa]) -> aore"),
         ("ea", "ea(upea[T], T, T) -> ?"),
         ("teitei", "teitei(arbre[T]) -> numera"),

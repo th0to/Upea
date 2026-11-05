@@ -24,6 +24,7 @@ from .vues import _ARBRE, _ORDONNE
 _ORDONNES = _ORDONNE[1]
 _COLLECTION = ("tapura ou arbre ordonné", (list, *_ORDONNES))
 _RETIRABLE = ("tapura, upea ou arbre ordonné", (list, _Upea, *_ORDONNES))
+_AJOUTABLE = _RETIRABLE  # `amui` ajoute un élément, une clé, ou un nœud
 
 # --- Mesure et collections ------------------------------------------------------------
 
@@ -38,8 +39,10 @@ def _roa(valeur: object) -> int:
     raise _Erreur(f"roa : impossible de mesurer un {_sorte(valeur)}")
 
 
-@_attend(_COLLECTION)
+@_attend(_AJOUTABLE)
 def _amui(collection: _Any, valeur: object) -> None:
+    """Ajoute à la fin d'une liste, dans un arbre ordonné, ou un nœud à un graphe
+    (sans effet s'il y est déjà, comme pour la clé d'un arbre de recherche)."""
     if isinstance(collection, list):
         collection.append(valeur)
     else:

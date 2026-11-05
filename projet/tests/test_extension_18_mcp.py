@@ -481,6 +481,14 @@ async def test_les_predefinies(client: Client) -> None:
     assert "`arbre[T]` : `tumu[T] | imi[T]" in texte_lu
 
 
+@pytest.mark.anyio
+async def test_la_ressource_montre_amui_sur_un_graphe(client: Client) -> None:
+    """M4 : `amui` ajoute aussi un nœud à un graphe, et la ressource le dit."""
+    texte_lu = await lire_ressource(client, "upea://predefinies")
+    assert "`amui(ajoutable[T], T) -> aore`" in texte_lu
+    assert "`ajoutable[T]` : `tapura[T] | upea[T] | imi[T]" in texte_lu
+
+
 # --- Les prompts ----------------------------------------------------------------------
 
 
