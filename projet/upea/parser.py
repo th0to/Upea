@@ -5,8 +5,15 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from enum import IntEnum
+from typing import NoReturn, get_args
 
-from .erreurs import ErreurLexicale, ErreursMultiples, ErreurSyntaxe, ErreurUpea
+from .erreurs import (
+    ErreurLexicale,
+    ErreursMultiples,
+    ErreurSyntaxe,
+    ErreurUpea,
+    Position,
+)
 from .flux import Flux
 from .lexer import tokenize
 from .noeuds import (
@@ -44,12 +51,31 @@ from .noeuds import (
     TypeNote,
     Unaire,
     Variable,
+    sous_noeuds,
 )
 from .tokens import Token
 from .tokens import TokenKind as T
 
 #: Au-delà, le parser abandonne : un programme très faux noierait l'utilisateur.
 MAX_ERREURS = 20
+
+# Les limites d'imbrication. Elles viennent de CPython, qui refuse de compiler plus de
+# 100 niveaux d'indentation, plus de 200 parenthèses ouvertes, et une vingtaine de
+# boucles imbriquées dans une même fonction. Le parser les vérifie lui-même, avec des
+# compteurs : son verdict ne dépend pas de la limite de récursion du processus, et un
+# programme accepté ici ne fait déborder ni l'analyse, ni les générateurs, ni Python.
+
+#: Blocs `{ }` imbriqués, le corps d'une fonction compris (un niveau d'indentation
+#: chacun dans le Python généré).
+MAX_BLOCS = 90
+#: Boucles `tamau` et `tataitahi` imbriquées dans une même fonction.
+MAX_BOUCLES = 20
+#: Niveaux d'une expression : parenthèses et opérateurs imbriqués pour le parser, et
+#: profondeur pondérée de l'arbre (`POIDS`) pour le Python généré.
+MAX_EXPRESSION = 150
+
+#: Le message des deux barrières : un débordement de Python qui a échappé aux limites.
+TROP_IMBRIQUE = "programme trop imbriqué pour être compilé"
 
 
 class Precedence(IntEnum):
@@ -152,6 +178,16 @@ class Parser:
         #: Le dernier token rendu par `avance()`, pour pointer juste après lui.
         self.dernier: Token | None = None
         self._fin: Token | None = None
+        # Les imbrications en cours (voir `MAX_BLOCS` et suivantes).
+        self._blocs = 0
+        self._boucles = 0
+        self._expressions = 0
+
+    def _trop_imbrique(self, message: str, position: Position) -> NoReturn:
+        """Une limite d'imbrication est dépassée : on le signale une fois, et on
+        arrête là (la récupération d'erreurs le signalerait à chaque niveau)."""
+        self.erreurs.append(ErreurSyntaxe(message, position))
+        raise _Abandon
 
     # --- Accès aux tokens -------------------------------------------------------
 
@@ -200,20 +236,33 @@ class Parser:
     # --- Expressions (Pratt) ------------------------------------------------------
 
     def expression(self, precedence: Precedence = Precedence.AUCUNE) -> Expr:
-        token = self.avance()
-        regle = REGLES_PREFIXE.get(token.kind)
-        if regle is None:
-            raise ErreurSyntaxe(
-                f"expression attendue, trouvé {decrire(token)}", token.position
+        # L'expression la plus externe ne compte pas : chaque parenthèse, opérateur
+        # préfixe, opérande de droite, argument ou élément ajoute un niveau. (Tout
+        # tient dans une seule méthode : un appel Python de plus par niveau ferait
+        # déborder la pile avant le compteur.)
+        if self._expressions > MAX_EXPRESSION:
+            self._trop_imbrique(
+                f"expression trop imbriquée ({MAX_EXPRESSION} niveaux au plus)",
+                self.regarde().position,
             )
-        gauche = regle(self, token)
-        while True:
-            suivant = self.regarde()
-            entree = REGLES_INFIXE.get(suivant.kind)
-            if entree is None or entree[0] <= precedence:
-                return gauche
-            self.avance()
-            gauche = entree[1](self, gauche, suivant)
+        self._expressions += 1
+        try:
+            token = self.avance()
+            regle = REGLES_PREFIXE.get(token.kind)
+            if regle is None:
+                raise ErreurSyntaxe(
+                    f"expression attendue, trouvé {decrire(token)}", token.position
+                )
+            gauche = regle(self, token)
+            while True:
+                suivant = self.regarde()
+                entree = REGLES_INFIXE.get(suivant.kind)
+                if entree is None or entree[0] <= precedence:
+                    return gauche
+                self.avance()
+                gauche = entree[1](self, gauche, suivant)
+        finally:
+            self._expressions -= 1
 
     def arguments(self, fermante: T, contexte: str) -> tuple[Expr, ...]:
         """`expression { "," expression }`, jusqu'au token `fermante`."""
@@ -308,19 +357,27 @@ class Parser:
 
     def bloc(self, contexte: str = "") -> Bloc:
         ouverture = self.attend(T.ACC_G, contexte)
-        instructions: list[Instr] = []
-        while not self.verifie(T.ACC_D):
-            if self.verifie(T.FIN):
-                raise ErreurSyntaxe(
-                    f"bloc ouvert ligne {ouverture.position.ligne} jamais fermé : "
-                    "'}' attendu",
-                    self.regarde().position,
-                )
-            instruction = self._instruction_protegee()
-            if instruction is not None:
-                instructions.append(instruction)
-        self.avance()
-        return Bloc(tuple(instructions), ouverture.position)
+        if self._blocs >= MAX_BLOCS:
+            self._trop_imbrique(
+                f"trop de blocs imbriqués ({MAX_BLOCS} au plus)", ouverture.position
+            )
+        self._blocs += 1
+        try:
+            instructions: list[Instr] = []
+            while not self.verifie(T.ACC_D):
+                if self.verifie(T.FIN):
+                    raise ErreurSyntaxe(
+                        f"bloc ouvert ligne {ouverture.position.ligne} jamais fermé : "
+                        "'}' attendu",
+                        self.regarde().position,
+                    )
+                instruction = self._instruction_protegee()
+                if instruction is not None:
+                    instructions.append(instruction)
+            self.avance()
+            return Bloc(tuple(instructions), ouverture.position)
+        finally:
+            self._blocs -= 1
 
     def type(self) -> TypeNote:
         token = self.regarde()
@@ -364,7 +421,13 @@ class Parser:
                     break
             self.attend(T.PAR_D, "pour fermer la liste des paramètres")
         retour = self.type() if self.accepte(T.FLECHE) else None
-        corps = self.bloc("pour ouvrir le corps de la fonction")
+        # Le corps d'une fonction est un autre bloc de code Python : ses boucles se
+        # comptent à part.
+        boucles, self._boucles = self._boucles, 0
+        try:
+            corps = self.bloc("pour ouvrir le corps de la fonction")
+        finally:
+            self._boucles = boucles
         return Fonction(nom.lexeme, tuple(parametres), corps, retour, nom.position)
 
     def si(self) -> Si:
@@ -388,7 +451,20 @@ class Parser:
     def tantque(self) -> TantQue:
         mot_cle = self.avance()
         condition = self.expression()
-        return TantQue(condition, self.bloc("après la condition"), mot_cle.position)
+        corps = self.corps_de_boucle(mot_cle, "après la condition")
+        return TantQue(condition, corps, mot_cle.position)
+
+    def corps_de_boucle(self, mot_cle: Token, contexte: str) -> Bloc:
+        if self._boucles >= MAX_BOUCLES:
+            self._trop_imbrique(
+                f"trop de boucles imbriquées ({MAX_BOUCLES} au plus)",
+                mot_cle.position,
+            )
+        self._boucles += 1
+        try:
+            return self.bloc(contexte)
+        finally:
+            self._boucles -= 1
 
     def pour(self) -> Pour:
         mot_cle = self.avance()
@@ -409,7 +485,7 @@ class Parser:
                 mode = "aano"
             elif self.accepte(T.HOHONU):
                 mode = "hohonu"
-        corps = self.bloc("pour ouvrir le corps de la boucle")
+        corps = self.corps_de_boucle(mot_cle, "pour ouvrir le corps de la boucle")
         return Pour(
             variable, iterable, corps, fin, inclusif, depart, mode, mot_cle.position
         )
@@ -623,9 +699,58 @@ def parse(source: str) -> Programme:
         parser.erreurs.append(erreur)  # le lexer ne peut pas reprendre
     except _Abandon:
         pass
+    except RecursionError:
+        # Seconde barrière : les compteurs du parser n'ont pas suffi (une limite de
+        # récursion de Python très basse).
+        position = None if parser.dernier is None else parser.dernier.position
+        parser.erreurs.append(ErreurSyntaxe(TROP_IMBRIQUE, position))
+    if not parser.erreurs:
+        parser.erreurs.extend(verifier_profondeur(programme))
     if parser.erreurs:
         raise ErreursMultiples(parser.erreurs) from parser.erreurs[0]
     return programme
+
+
+# --- La profondeur des expressions ------------------------------------------------
+
+#: Les classes des expressions.
+EXPRESSIONS: tuple[type, ...] = get_args(Expr.__value__)
+
+#: Les niveaux qu'ajoute une expression : les parenthèses qu'elle ouvre dans le Python
+#: généré (`generateur.py`). Un littéral de graphe en ouvre trois
+#: (`_graphe([(a, b, p, False)])`), un arbre ordonné deux (`_aifaito([...])`), une
+#: opération, un appel, une liste ou un indice une ; un champ n'en ouvre pas, mais
+#: compte pour un, car l'analyse et les générateurs descendent dans ses chaînes. Les
+#: atomes (nombres, textes, variables...) ne comptent pas.
+POIDS: dict[type, int] = {Graphe: 3, Collection: 2} | {
+    classe: 0 for classe in (Entier, Decimal, Texte, Booleen, Rien, Variable)
+}
+
+
+def verifier_profondeur(programme: Programme) -> list[ErreurUpea]:
+    """Les expressions plus profondes que `MAX_EXPRESSION`, en profondeur pondérée.
+
+    Le parcours est itératif : une somme à plat de mille termes, que le parser lit
+    sans descendre, est un arbre profond de mille niveaux.
+    """
+    erreurs: list[ErreurUpea] = []
+    pile: list[tuple[object, int]] = [(programme, 0)]
+    while pile:
+        noeud, profondeur = pile.pop()
+        if isinstance(noeud, EXPRESSIONS):
+            profondeur += POIDS.get(type(noeud), 1)
+            if profondeur > MAX_EXPRESSION:
+                erreurs.append(
+                    ErreurSyntaxe(
+                        f"expression trop imbriquée ({MAX_EXPRESSION} niveaux au plus)",
+                        getattr(noeud, "pos", None),
+                    )
+                )
+                continue
+        elif not isinstance(noeud, Arete):  # l'arête est dans les parenthèses du graphe
+            profondeur = 0
+        pile.extend((enfant, profondeur) for enfant in sous_noeuds(noeud))
+    return erreurs
 
 
 def parse_expression(source: str) -> Expr:
@@ -634,7 +759,10 @@ def parse_expression(source: str) -> Expr:
     Lève directement l'`ErreurSyntaxe` (ou l'`ErreurLexicale`) rencontrée.
     """
     parser = Parser(tokenize(source))
-    expression = parser.expression()
+    try:
+        expression = parser.expression()
+    except _Abandon:
+        raise parser.erreurs[-1] from None
     reste = parser.regarde()
     if reste.kind is not T.FIN:
         raise ErreurSyntaxe(

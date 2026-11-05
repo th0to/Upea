@@ -49,7 +49,7 @@ uv run python -m upea mcp            # serveur MCP en stdio (SDK : groupe `mcp`,
 
 | Étape | État | Module(s) | Tests |
 |---|---|---|---|
-| 1 spécification | écrite, **à faire valider par l'enseignant** | `specification.md`, `exemples/` | `test_etape_01_*` |
+| 1 spécification | écrite, **validée par l'enseignant le [DATE À REMPLIR]** (modifications depuis : voir plus bas) | `specification.md`, `exemples/` | `test_etape_01_*` |
 | 2 tokens | fait | `tokens.py`, `erreurs.py` | `test_etape_02_*` |
 | 3 lexer, flux | fait | `lexer.py`, `flux.py` | `test_etape_03_*` |
 | 4 AST | fait | `noeuds.py` | `test_etape_04_*` |
@@ -67,6 +67,17 @@ uv run python -m upea mcp            # serveur MCP en stdio (SDK : groupe `mcp`,
 | 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
 | 17 propriétés | fait (`hypothesis`) : formater est idempotent et garde le sens, relire `parau` redonne une valeur égale, les deux backends font la même chose, sur des programmes et des valeurs tirés au hasard | `tests/generateurs.py` | `test_extension_17_*` |
 | 18 serveur MCP | fait ([`PLAN_MCP.md`](PLAN_MCP.md), branchement dans le [README](README.md)) : `python -m upea mcp` en stdio (SDK `mcp` 2.x, facultatif ; sans lui, un message et le code 2). Outils `verifier`, `formater`, `transpiler` (diagnostics structurés : sorte, ligne, colonne, message) et `executer` (sous-processus : 5 s, 64 Kio de sortie, 512 Mo de mémoire, deux exécutions à la fois) ; ressources `upea://specification`, `upea://exemples` (chacun avec sa sortie), `upea://predefinies` (signatures calculées à partir des patrons de typage : `pihai(upea[T], T) -> tapura[T]`) ; prompts `ecrire_programme`, `traduire_depuis_python`. Testé en mémoire et de bout en bout en stdio | `serveur_mcp.py`, `atelier.py`, `bac_a_sable.py`, `predefinies.py`, `cli.py` | `test_extension_18_*` |
+
+## Modifications depuis la validation de la spécification (le [DATE À REMPLIR])
+
+Après la validation, un audit (le « conseil », rapport du commit `ce53700`) a relevé
+des bugs. Leur correction a demandé les changements de
+[`specification.md`](projet/specification.md) ci-dessous, et seulement ceux-là. Le
+lot est l'identifiant du rapport, cité dans le message du commit.
+
+| Lot | Endroit | Changement | Raison |
+|---|---|---|---|
+| L1 | *Limites assumées* | une puce ajoutée : 90 blocs imbriqués, 20 boucles imbriquées, 150 niveaux dans une expression ; au-delà, erreur de syntaxe | `check` acceptait des programmes que Python refusait ensuite de compiler : `run` affichait un traceback, et le REPL s'arrêtait. Ce sont les limites de CPython, désormais vérifiées par le parser |
 
 ## Outils Python mobilisés (refactorisation)
 

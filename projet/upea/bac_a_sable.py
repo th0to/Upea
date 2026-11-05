@@ -294,6 +294,8 @@ def _executer_ici(
         return "erreur_compilation", 1, [echec]
     try:
         compilateur.executer(source, backend, types=types)
+    except ErreursMultiples as echec:  # CPython refuse le code généré : le filet
+        return "erreur_compilation", 1, [*signales, echec]
     except ErreurExecution as erreur:
         if isinstance(erreur.__cause__, MemoryError):
             erreur = ErreurExecution(

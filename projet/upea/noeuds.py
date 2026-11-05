@@ -307,6 +307,11 @@ def _enfants(noeud: object) -> list[tuple[str, object]]:
     return resultat
 
 
+def sous_noeuds(noeud: object) -> list[object]:
+    """Les nœuds contenus directement dans `noeud`, dans l'ordre de ses champs."""
+    return [enfant for _, enfant in _enfants(noeud)]
+
+
 def _attributs(noeud: object) -> str:
     morceaux: list[str] = []
     if not is_dataclass(noeud):

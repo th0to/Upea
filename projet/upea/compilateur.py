@@ -8,17 +8,24 @@ from __future__ import annotations
 import re
 import traceback
 from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from types import CodeType
 
 from .backend import Backend, Sortie
-from .erreurs import ErreurExecution, ErreurUpea, Position
+from .erreurs import (
+    ErreurExecution,
+    ErreursMultiples,
+    ErreurSyntaxe,
+    ErreurUpea,
+    Position,
+)
 from .formateur import Formateur
 from .generateur import GenerateurPython
 from .generateur_ast import GenerateurAst, compiler_module, correspondance_identite
 from .lexer import tokenize
 from .noeuds import Instr, Programme
-from .parser import parse
+from .parser import TROP_IMBRIQUE, parse
 from .predefinies import ABREVIATIONS, PREDEFINIES, Predefinie
 from .prelude import IMPORT_PRELUDE, PRELUDE
 from .semantique import Analyse, analyser
@@ -51,10 +58,22 @@ def choisir_backend(nom: str) -> Backend:
         ) from None
 
 
+@contextmanager
+def _sans_debordement() -> Iterator[None]:
+    """Seconde barrière : un `RecursionError` du compilateur devient une erreur de
+    compilation. Les limites du parser l'empêchent ; la limite de récursion du
+    processus, elle, peut être plus basse que prévu."""
+    try:
+        yield
+    except RecursionError:
+        raise ErreursMultiples([ErreurSyntaxe(TROP_IMBRIQUE)]) from None
+
+
 def compiler(source: str, *, types: bool = True) -> Compilation:
     """Analyse syntaxique puis sémantique. Lève `ErreursMultiples`."""
-    programme = parse(source)
-    return Compilation(programme, analyser(programme, types=types))
+    with _sans_debordement():
+        programme = parse(source)
+        return Compilation(programme, analyser(programme, types=types))
 
 
 def transpiler(
@@ -73,7 +92,8 @@ def transpiler(
     if prelude_externe:
         generateur = importer_le_prelude(generateur)
     compilation = compiler(source, types=types)
-    return generateur.generer(compilation.programme, compilation.analyse)
+    with _sans_debordement():
+        return generateur.generer(compilation.programme, compilation.analyse)
 
 
 def importer_le_prelude(generateur: Backend) -> Backend:
@@ -143,14 +163,31 @@ def nouvel_espace(avec_prelude: bool = False) -> dict[str, object]:
 def executer_code(
     code: str | CodeType, sourcemap: SourceMap, espace: dict[str, object] | None = None
 ) -> None:
-    """Exécute du code généré ; une exception Python devient une `ErreurExecution`."""
-    objet = code if isinstance(code, CodeType) else compiler_module(code, NOM_FICHIER)
+    """Exécute du code généré ; une exception Python devient une `ErreurExecution`.
+
+    Lève `ErreursMultiples` si CPython refuse de compiler le code (trop imbriqué).
+    """
+    objet = code if isinstance(code, CodeType) else _compiler_le_python(code, sourcemap)
     try:
         exec(objet, nouvel_espace() if espace is None else espace)
     except Exception as exc:
         ligne = ligne_fautive(exc, sourcemap)
         position = None if ligne is None else Position(ligne, 0)
         raise ErreurExecution(traduire(exc), position) from exc
+
+
+def _compiler_le_python(code: str, sourcemap: SourceMap) -> CodeType:
+    """`compile()`, avec un filet : les limites du parser évitent que CPython refuse
+    le code généré, mais si cela arrive, c'est une erreur de compilation."""
+    try:
+        return compiler_module(code, NOM_FICHIER)
+    except (SyntaxError, RecursionError) as exc:
+        if isinstance(exc, SyntaxError) and not (exc.msg or "").startswith("too many"):
+            raise  # un défaut du générateur, pas une limite : on veut le voir
+        ligne = getattr(exc, "lineno", None)
+        source = None if ligne is None else sourcemap.ligne_source(ligne)
+        position = None if source is None else Position(source, 0)
+        raise ErreursMultiples([ErreurSyntaxe(TROP_IMBRIQUE, position)]) from None
 
 
 def ligne_fautive(exc: BaseException, sourcemap: SourceMap) -> int | None:
@@ -265,4 +302,5 @@ def traduire(exc: BaseException) -> str:
 
 def mettre_en_forme(source: str) -> str:
     """Le source réécrit dans sa présentation canonique (sans analyse sémantique)."""
-    return Formateur().generer(parse(source), Analyse()).code
+    with _sans_debordement():
+        return Formateur().generer(parse(source), Analyse()).code

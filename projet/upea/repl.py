@@ -14,7 +14,7 @@ from .compilateur import (
     tokens,
     traduire_suite,
 )
-from .erreurs import ErreurExecution, ErreurLexicale, ErreurUpea, formater
+from .erreurs import ErreurLexicale, ErreurUpea, formater
 from .noeuds import afficher_arbre
 from .parser import DEBUTS_INSTRUCTION
 from .tokens import TokenKind
@@ -93,7 +93,7 @@ class _Session:
         try:
             with redirect_stdout(tampon):
                 executer_code(code, sourcemap, self.espace)
-        except ErreurExecution as erreur:
+        except ErreurUpea as erreur:  # d'exécution, ou de compilation (le filet)
             return tampon.getvalue() + formater(erreur, source, FICHIER) + "\n"
         self.acceptees = source
         self.executees = len(compilation.programme.instructions)
