@@ -8,6 +8,9 @@ exercice et sa solution. Pour le détail d'une construction, chaque leçon renvo
 Tous les programmes de cette page sont exécutés par les tests du projet : la sortie
 montrée est celle qu'ils affichent vraiment.
 
+Pour une vue d'ensemble d'une page, l'[aide-mémoire](aide-memoire.md) ; pour qui connaît
+déjà Python, [de Python à Upea](depuis-python.md) donne le tableau des équivalences.
+
 ## 0. Installer, et lancer un premier programme
 
 Installez le projet comme le dit le [README](../README.md#installation). Puis créez,
@@ -611,6 +614,41 @@ moyenne : 12.0
 
 </details>
 
+### Un mot d'un autre langage
+
+Quand l'erreur porte sur un mot de Python ou du français qu'Upea ne connaît pas (`si`,
+`while`, `print`, `vrai`…), le message garde son texte, puis ajoute un conseil :
+
+```upea
+tuu x = 2;
+si x > 1 {
+    faaite x;
+}
+```
+
+```erreur
+exemple.upea:2:3 : erreur de syntaxe : ';' attendu après l'expression, trouvé 'x' — 'si' n'est pas un mot-clé d'Upea : écrivez 'ahani'
+    si x > 1 {
+      ^
+```
+
+Le conseil ne vient que d'une erreur : une variable peut s'appeler `si`, une fois
+déclarée. Affecter un nom que l'on n'a pas déclaré, comme en Python, propose de le
+déclarer d'abord :
+
+```upea
+compteur = 0;
+```
+
+```erreur
+exemple.upea:1:1 : erreur sémantique : 'compteur' n'est pas déclaré — déclarez-la d'abord : tuu compteur = …;
+    compteur = 0;
+    ^
+```
+
+Les équivalences complètes entre Python et Upea sont dans
+[de Python à Upea](depuis-python.md).
+
 ## 11. Le REPL
 
 `uv run python -m upea repl` ouvre une session : on tape une instruction, ou une
@@ -647,6 +685,8 @@ Ctrl-D (Ctrl-Z puis Entrée sous Windows) quitte la session.
   exacte dans un fichier `.attendu` : `06_tahua.upea` résout un vrai petit problème,
   `08_algorithmes_graphes.upea` et `09_algorithmes_arbres.upea` montrent tous les
   algorithmes.
+- L'[aide-mémoire](aide-memoire.md), et [de Python à Upea](depuis-python.md) : comment
+  remplacer ce qu'Upea n'a pas (dictionnaires, ensembles, hasard, clavier).
 - La [spécification](../projet/specification.md) entière, en particulier ses
   [*Limites assumées*](../projet/specification.md#limites-assumées).
 - `transpile`, pour voir le Python qu'Upea produit

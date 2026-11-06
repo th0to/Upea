@@ -95,9 +95,10 @@ Le fichier produit par `transpile` se lance seul (`python fibo.py`) ;
 
 `uv run python -m upea mcp` est un serveur [MCP](https://modelcontextprotocol.io)
 (en stdio) qui permet à une IA comme Claude d'apprendre Upea, puis de se servir du
-compilateur pour vérifier, corriger et exécuter ce qu'elle écrit : des ressources (la
-spécification, les exemples, les fonctions prédéfinies), six outils (`tokenize`,
-`parse`, `verifier`, `formater`, `transpiler`, `executer`) et trois prompts. Ses
+compilateur pour vérifier, corriger et exécuter ce qu'elle écrit : huit outils
+(`aide` et `exemples`, que l'IA appelle d'elle-même pour apprendre le langage ;
+`tokenize`, `parse`, `verifier`, `formater`, `transpiler`, `executer`), des ressources
+(la spécification, les exemples, les fonctions prédéfinies) et trois prompts. Ses
 outils, ses limites et son branchement dans Claude Code, Claude Desktop ou MCP
 Inspector sont décrits dans [`docs/mcp.md`](docs/mcp.md).
 
@@ -107,6 +108,8 @@ Inspector sont décrits dans [`docs/mcp.md`](docs/mcp.md).
 |---|---|---|
 | [`projet/specification.md`](projet/specification.md) | qui écrit en Upea | la référence du langage : vocabulaire, grammaire, sémantique, types, fonctions prédéfinies, limites |
 | [`NOTES.md`](NOTES.md) | l'enseignant | l'avancement étape par étape, les choix et les limites, les modifications depuis la validation de la spécification |
+| [`docs/aide-memoire.md`](docs/aide-memoire.md) | qui écrit en Upea, ou une IA | une page : la structure d'un programme, les constructions, un exemple complet, ce qu'Upea n'a pas |
+| [`docs/depuis-python.md`](docs/depuis-python.md) | qui vient de Python | ce qui change, le tableau des équivalences, et comment remplacer les dictionnaires, les ensembles, le hasard et le clavier |
 | [`docs/tutoriel.md`](docs/tutoriel.md) | qui veut apprendre Upea | une progression pas à pas, du premier programme aux graphes et aux arbres ordonnés, avec des exercices corrigés |
 | [`docs/architecture.md`](docs/architecture.md) | un développeur, le jury | la chaîne de compilation, le prélude, le REPL, le serveur MCP, le rôle de chaque module, les choix de conception |
 | [`docs/mcp.md`](docs/mcp.md) | qui branche le serveur MCP | ses outils, ressources et prompts, les limites du bac à sable, le branchement dans Claude Code, Claude Desktop et MCP Inspector |

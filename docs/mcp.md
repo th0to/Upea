@@ -2,8 +2,8 @@
 
 `python -m upea mcp` est un serveur [MCP](https://modelcontextprotocol.io) (Model
 Context Protocol), en stdio. Il permet à une IA qui ne connaît pas Upea de l'apprendre
-(la spécification, les exemples, les fonctions prédéfinies), puis de se servir du
-compilateur pour vérifier, corriger et exécuter ce qu'elle écrit. Ce guide décrit ce
+(l'outil `aide`, les exemples, les fonctions prédéfinies, la spécification), puis de se
+servir du compilateur pour vérifier, corriger et exécuter ce qu'elle écrit. Ce guide décrit ce
 qu'il offre, ses limites, et comment le brancher. Son code est décrit dans
 l'[architecture](architecture.md#9-le-serveur-mcp).
 
@@ -19,10 +19,41 @@ rester silencieux, en attente d'un client sur son entrée standard (Ctrl-C l'arr
 
 ## 2. Ce que l'IA lit en se connectant
 
-Les instructions du serveur lui disent par où commencer : lire la spécification, les
-prédéfinies et les exemples, écrire le programme, le vérifier avec `verifier` jusqu'à
-ce qu'il n'ait plus d'erreur, puis l'exécuter avec `executer` ; `tokenize` et `parse`
-aident à comprendre une erreur de lexique ou de syntaxe.
+À la connexion, le serveur envoie ses **instructions** : ce qu'est Upea, et la
+démarche. L'IA appelle `aide("apercu")` (une page, environ 4 Kio), écrit son
+programme, le vérifie avec `verifier` jusqu'à ce qu'il n'ait plus d'erreur, puis
+l'exécute avec `executer` ; `tokenize` et `parse` aident à comprendre une erreur de
+lexique ou de syntaxe. Le serveur expose aussi des ressources et des prompts. Mais ce
+qu'une IA en voit dépend de **qui choisit** :
+
+| Ce que le serveur expose | Qui le choisit |
+|---|---|
+| un outil | **le modèle**, de lui-même |
+| une ressource | l'application, ou l'utilisateur |
+| un prompt | l'utilisateur |
+
+**Seuls les outils sont appelés par le modèle de lui-même.** Tout ce qu'une IA doit
+pouvoir consulter seule doit donc être un outil : c'est le rôle de `aide` et de
+`exemples` (section 3). Les ressources et les prompts restent, pour les clients qui les
+affichent (dans Claude Code, `@upea:upea://specification` cite une ressource).
+
+### Un client qui n'affiche que les outils
+
+Un client peut ne transmettre que les outils : ni ressources, ni prompts, ni
+instructions. C'est ce qui s'est passé lors de la première session de l'exercice final
+(voir le [journal](journal/index.md)) : un pont entre l'IA et le serveur ne lui laissait
+voir que les six outils d'alors, et leurs descriptions ne disaient rien du langage. Pour
+que ce cas marche, le serveur ne compte que sur ses outils :
+
+- chaque description d'outil commence par la même phrase, « Upea est un langage aux
+  mots-clés tahitiens, transpilé en Python. Si tu ne le connais pas, appelle d'abord
+  aide("apercu"). » ;
+- `aide("apercu")` est un aide-mémoire d'une page, avec un exemple complet ;
+- `verifier` dit, dans le message d'erreur, quand un mot est d'un autre langage
+  (`si`, `while`, `print`…) et quoi écrire à la place.
+
+Les mêmes textes sont dans le dépôt, pour un lecteur humain :
+l'[aide-mémoire](aide-memoire.md), et [de Python à Upea](depuis-python.md).
 
 ## 3. Les outils
 
@@ -33,12 +64,22 @@ pas faire son travail.
 
 | Outil | Paramètres | Résultat | Échec de l'outil |
 |---|---|---|---|
+| `aide` | `sujet` (`apercu`, `mots_cles`, `predefinies`, `depuis_python` ou `specification`), `section` (facultatif, pour `specification`) | du texte Markdown. Un nom de section inconnu rend la liste des sections | sujet inconnu |
+| `exemples` | `nom` (facultatif) | du texte Markdown : sans nom, la liste des exemples ; avec un nom, son source et sa sortie exacte. Un nom inconnu rend la liste des noms | aucun |
 | `tokenize` | `source` | `valide`, `jetons` (chacun `sorte`, `texte`, `ligne`, `colonne` ; sur une erreur lexicale, ceux lus avant elle), `diagnostics`, `rapport` | source trop longue |
 | `parse` | `source` | `valide`, `arbre` (chaque nœud a un `type`, ses champs, sa `ligne` et sa `colonne` ; `null` s'il y a des erreurs), `diagnostics`, `rapport` | source trop longue |
 | `verifier` | `source`, `types` (vrai par défaut) | `valide`, `diagnostics`, `rapport` | source trop longue |
 | `formater` | `source` | `code` (le programme réécrit, ou `null`), `diagnostics`, `rapport` | source trop longue |
 | `transpiler` | `source`, `backend` (`python` ou `ast`), `avec_prelude` (faux par défaut) | `code` (ou `null`), `diagnostics`, `rapport` | source trop longue, backend inconnu |
 | `executer` | `source`, `types`, `backend`, `delai` (de 0,1 à 5 s, 5 par défaut) | `statut` (`succes`, `erreur_compilation` ou `erreur_execution`), `code_retour` (0, 1 ou 3, comme `run`), `sortie`, `tronquee`, `octets`, `diagnostics`, `rapport` | source trop longue, délai hors des bornes, délai dépassé, panne du processus |
+
+`aide` et `exemples` ne lisent que des textes que le serveur a déjà : les sujets sont
+l'aide-mémoire, les mots-clés (avec leur équivalent Python, et les mots d'autres
+langages qu'Upea ne connaît pas), le catalogue des fonctions prédéfinies, la
+traduction depuis Python, et la spécification, qu'on lit par sections
+(`section="grammaire"`, `section="boucle_tataitahi"`) : sans section, le sommaire,
+et `section="tout"` rend les 44 Kio. Ils ne font rien d'autre, et le serveur
+les annonce en lecture seule, idempotents, sans accès au monde extérieur.
 
 Un diagnostic a une `sorte` (`lexicale`, `syntaxe`, `semantique`, `type`,
 `avertissement` ou `execution`), une `ligne` et une `colonne` (à partir de 1, ou
@@ -64,7 +105,29 @@ Par exemple, `verifier` sur `tuu x = 1;` puis `faaite y;` rend :
 }
 ```
 
-et `executer` sur `faaite 6 * 7;` :
+Quand l'erreur porte sur un mot d'un autre langage, le message garde son texte, puis
+ajoute un conseil. `verifier` sur un `si` écrit à la place de `ahani` rend :
+
+```json
+{
+  "valide": false,
+  "diagnostics": [
+    {
+      "sorte": "syntaxe",
+      "ligne": 2,
+      "colonne": 3,
+      "message": "';' attendu après l'expression, trouvé 'x' — 'si' n'est pas un mot-clé d'Upea : écrivez 'ahani'"
+    }
+  ],
+  "rapport": "programme.upea:2:3 : erreur de syntaxe : ';' attendu après l'expression, trouvé 'x' — 'si' n'est pas un mot-clé d'Upea : écrivez 'ahani'\n    si x > 1 {\n      ^"
+}
+```
+
+Le conseil ne vient que d'une erreur : une variable que le programme déclare peut
+s'appeler `si` ou `et`, sans qu'on l'accuse. Affecter un nom jamais déclaré
+(`compteur = 0;`, l'habitude de Python) propose de le déclarer d'abord.
+
+Et `executer` sur `faaite 6 * 7;` :
 
 ```json
 {
@@ -85,7 +148,8 @@ fin ?) ; il n'avait rien affiché ».
 
 ## 4. Les ressources
 
-Toutes en Markdown :
+Toutes en Markdown. Elles donnent les mêmes textes que les outils `aide` et `exemples`,
+pour les clients qui affichent les ressources (voir la section 2) :
 
 | Ressource | Contenu |
 |---|---|

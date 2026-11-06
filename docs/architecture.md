@@ -236,9 +236,21 @@ le [guide du serveur MCP](mcp.md).
   Le parent lui passe la requête en JSON sur son entrée standard ; l'enfant borne sa
   mémoire et son temps CPU, plafonne sa sortie, puis écrit un marqueur tiré au hasard
   et le résultat en JSON. Sa docstring répond à la question de sécurité du cours.
-- `serveur_mcp.py` : le seul module qui importe le SDK. Il déclare les outils, les
-  ressources et les prompts, limite la taille des sources, et transforme les pannes en
-  erreurs d'outil. La CLI ne l'importe qu'à la demande : sans le SDK, le reste marche.
+- `aide.py` : **la source unique des textes d'aide**, sans dépendance au SDK. Il fait
+  trois choses : les textes des sujets de l'outil `aide` (l'aide-mémoire, les mots-clés,
+  les prédéfinies, la traduction depuis Python, la spécification par sections) et des
+  ressources ; la table des faux amis, avec `ajouter_conseils`, que la façade
+  `compilateur.py` appelle quand la compilation échoue, pour qu'un message d'erreur dise
+  qu'un mot (`si`, `while`, `print`…) n'est pas d'Upea ; et les deux pages
+  [`aide-memoire.md`](aide-memoire.md) et [`depuis-python.md`](depuis-python.md) de
+  `docs/`, générées par `uv run python -m upea.aide --ecrire` (un test échoue si elles
+  ne correspondent plus au module). Le sens des mots-clés n'y est pas recopié : il est lu
+  dans la table « Vocabulaire » de la spécification. Il ne dépend que de `tokens`, `lexer`,
+  `erreurs` et `predefinies`, pas de la façade, qui l'importe.
+- `serveur_mcp.py` : le seul module qui importe le SDK. Il déclare les outils (dont
+  `aide` et `exemples`, qui ne font que rendre les textes d'`aide.py`), les ressources et
+  les prompts, limite la taille des sources, et transforme les pannes en erreurs d'outil.
+  La CLI ne l'importe qu'à la demande : sans le SDK, le reste marche.
 
 ## 10. Le rôle de chaque module
 
@@ -258,6 +270,7 @@ le [guide du serveur MCP](mcp.md).
 | `generateur.py` | backend `python` | 8 | `test_etape_08_generation.py`, `test_etape_08_execution.py` |
 | `prelude.py`, `execution/` | le prélude | 8, 14 à 16 | `test_etape_08_execution.py`, `test_extension_14_structures.py`, `test_extension_15_algorithmes.py`, `test_extension_16_affichage.py` |
 | `compilateur.py` | la façade, l'exécution, la traduction des erreurs | 9 | `test_etape_09_cli_repl.py` |
+| `aide.py` | les textes d'aide, les faux amis, les pages `docs/aide-memoire.md` et `docs/depuis-python.md` | MCP | `test_extension_18_aide_*.py` |
 | `cli.py`, `__main__.py` | la ligne de commande | 9 | `test_etape_09_cli_repl.py` |
 | `repl.py` | le REPL | 9 | `test_etape_09_cli_repl.py`, `test_conseil_m5_repl_lignes.py` |
 | `backend.py` | le `Protocol` des backends | 10 | `test_etape_10_qualite.py` |

@@ -13,7 +13,10 @@ ici.
 
 from __future__ import annotations
 
+import argparse
+import io
 import re
+import sys
 import unicodedata
 from contextlib import suppress
 from dataclasses import dataclass
@@ -814,6 +817,7 @@ EQUIVALENCES: tuple[tuple[str, str], ...] = (
     ("return v", "hoi v;"),
     ("if c: … elif d: … else: …", "ahani c { … } taae ahani d { … } taae { … }"),
     ("while c:", "tamau c { … }"),
+    ("while True:", "tamau tia { … }"),
     ("for i in range(a, b):", "tataitahi i roto a..b { … }"),
     ("for i in range(a, b + 1):", "tataitahi i roto a..=b { … }"),
     ("for x in l:", "tataitahi x roto l { … }"),
@@ -843,21 +847,253 @@ EQUIVALENCES: tuple[tuple[str, str], ...] = (
 )
 
 
+#: Ce qui change le plus quand on passe de Python à Upea.
+DIFFERENCES = """\
+## Ce qui change le plus
+
+- **Toute variable se déclare** avant son premier usage, une seule fois, avec `tuu` \
+(ou `mau` pour une constante) : `compteur = 0;` sans déclaration est une erreur, \
+`tuu compteur = 0;` la déclare. On ne redéclare pas un nom encore visible.
+- Les instructions finissent par `;` et les blocs sont entre accolades : \
+l'indentation ne compte pas.
+- **Pas de dictionnaires, de tuples, ni de méthodes** (`l.append(x)` devient \
+`amui(l, x)`, `len(l)` devient `roa(l)`). Les recettes plus bas les remplacent.
+- Une fonction (`ohipa`) se déclare **au niveau global**, avant son premier appel ; \
+pas de fonction imbriquée, ni de fonction comme valeur, ni de récursion croisée. Elle \
+peut lire et modifier les variables globales déclarées avant elle.
+- Les comparaisons ne s'enchaînent pas : `a < b ma b < c` au lieu de `a < b < c`.
+- `ma`, `anei`, `eiaha` pour `and`, `or`, `not` ; `tia`, `hape`, `aore` pour `True`, \
+`False`, `None`.
+- `/` rend toujours un décimal ; il n'y a ni `//` ni `**`. Pour coller un nombre à \
+un texte : `"n = " + parau(n)`.
+- **Pas de clavier, de fichiers, de réseau ni d'aléatoire** : un programme ne fait \
+que calculer et afficher.
+- Pour un arbre ou un graphe, préférez les structures et les algorithmes d'Upea \
+(`upea { "A" -> "B" : 3 }`, `tumu`, `aifaito`, `dijkstra`, `bfs`…) à une \
+réimplémentation avec des listes.
+"""
+
+#: Ce qu'on écrit à la place de ce qu'Upea n'a pas. Chaque programme est suivi de sa
+#: sortie, copiée d'une exécution réelle : les tests les rejouent.
+RECETTES = """\
+## Remplacer ce qu'Upea n'a pas
+
+### Un dictionnaire : une liste de paires
+
+Une liste de paires `[clé, valeur]`, et deux fonctions pour lire et écrire. Python :
+
+```python
+stock = {"pommes": 3, "poires": 5}
+stock["bananes"] = 7
+stock["pommes"] = 4
+print(stock.get("pommes"), stock.get("bananes"), stock.get("kiwis"))
+```
+
+Upea :
+
+```upea
+ohipa chercher(paires, cle) {
+    tataitahi p roto paires {
+        ahani p[0] == cle {
+            hoi p[1];
+        }
+    }
+    hoi aore;
+}
+
+ohipa mettre(paires, cle, valeur) {
+    tataitahi p roto paires {
+        ahani p[0] == cle {
+            p[1] = valeur;
+            hoi;
+        }
+    }
+    amui(paires, [cle, valeur]);
+}
+
+tuu stock = [["pommes", 3], ["poires", 5]];
+mettre(stock, "bananes", 7);
+mettre(stock, "pommes", 4);
+faaite chercher(stock, "pommes"), chercher(stock, "bananes"), chercher(stock, "kiwis");
+faaite stock;
+```
+
+```sortie
+4 7 aore
+[["pommes", 4], ["poires", 5], ["bananes", 7]]
+```
+
+La recherche parcourt la liste : c'est linéaire, comme `in` sur une liste Python.
+
+### Un dictionnaire de nombres : un graphe
+
+Quand les valeurs sont des nombres, un graphe fait l'affaire : la valeur d'une clé est \
+le poids de l'arc qui va d'un nœud « racine » à cette clé. `taati` écrit (et \
+remplace), `teiaha` lit, `roto` teste la présence, `pihai` donne les clés.
+
+```upea
+tuu stock = upea { "racine" };
+taati(stock, "racine", "pommes", 3);
+taati(stock, "racine", "poires", 5);
+taati(stock, "racine", "pommes", 4);
+faaite teiaha(stock, "racine", "pommes"), "pommes" roto stock, "kiwis" roto stock;
+faaite pihai(stock, "racine");
+```
+
+```sortie
+4 tia hape
+["pommes", "poires"]
+```
+
+### Un ensemble : un arbre ordonné
+
+Un arbre ordonné (`imi`, `aifaito`, `uteere`, `pupu`) est un ensemble : ajouter une \
+clé déjà présente ne fait rien, `roto` teste l'appartenance, `tatara` retire, et \
+`tataitahi` parcourt les clés dans l'ordre croissant. Python :
+
+```python
+vus = set()
+for x in [5, 3, 5, 1, 3]:
+    vus.add(x)
+print(len(vus), 3 in vus, 4 in vus)
+```
+
+Upea :
+
+```upea
+tuu vus = aifaito [];
+tataitahi x roto [5, 3, 5, 1, 3] {
+    amui(vus, x);
+}
+faaite roa(vus), 3 roto vus, 4 roto vus;
+tatara(vus, 3);
+tataitahi x roto vus {
+    faaite x;
+}
+```
+
+```sortie
+3 tia hape
+1
+5
+```
+
+### Trier une liste
+
+Il n'y a pas de `sorted`. Un tas min (`ahu`) rend ses clés dans l'ordre, doublons \
+compris : on y verse la liste, puis on la relit. Python :
+
+```python
+print(sorted([5, 3, 8, 3, 1]))
+```
+
+Upea :
+
+```upea
+tuu tas = ahu [];
+tataitahi x roto [5, 3, 8, 3, 1] {
+    amui(tas, x);
+}
+tuu trie = [];
+tataitahi x roto tas {
+    amui(trie, x);
+}
+faaite trie;
+```
+
+```sortie
+[1, 3, 3, 5, 8]
+```
+
+### Plusieurs valeurs de retour : une liste
+
+```upea
+ohipa min_max(l) {
+    hoi [iti(l), rahi(l)];
+}
+tuu r = min_max([4, 9, 2]);
+faaite "min", r[0], "max", r[1];
+```
+
+```sortie
+min 2 max 9
+```
+
+### Le hasard : un générateur pseudo-aléatoire
+
+Il n'y a pas de `random`. Un générateur congruentiel linéaire, écrit en Upea, donne \
+une suite qui a l'air aléatoire et qui est toujours la même pour une même graine : \
+c'est pratique pour tester. Python :
+
+```python
+import random
+print([random.randint(1, 6) for _ in range(8)])
+```
+
+Upea :
+
+```upea
+tuu graine = 42;
+
+ohipa alea(n: numera) -> numera {
+    graine = (graine * 1103515245 + 12345) % 2147483648;
+    hoi graine % n;
+}
+
+tuu des = [];
+tataitahi i roto 0..8 {
+    amui(des, alea(6) + 1);
+}
+faaite des;
+```
+
+```sortie
+[4, 3, 6, 5, 2, 1, 6, 1]
+```
+
+Pour une autre suite, changez la graine.
+
+### Le clavier : des constantes
+
+Un programme Upea ne lit rien : les réponses attendues de l'utilisateur deviennent des \
+constantes, écrites en tête du programme. Dites-le à qui lira le programme. \
+Python :
+
+```python
+nom = input()
+age = int(input())
+print("Ia ora na", nom + ", dans un an vous aurez", age + 1, "ans.")
+```
+
+Upea :
+
+```upea
+mau nom = "Teva";
+mau age = 27;
+faaite "Ia ora na", nom + ", dans un an vous aurez", age + 1, "ans.";
+```
+
+```sortie
+Ia ora na Teva, dans un an vous aurez 28 ans.
+```
+"""
+
+
 def texte_depuis_python() -> str:
-    """Le sujet `depuis_python` : le tableau des équivalences entre Python et Upea."""
+    """Le sujet `depuis_python` : comment traduire un programme Python en Upea."""
     lignes = "\n".join(f"| `{python}` | `{upea}` |" for python, upea in EQUIVALENCES)
     return (
         "# De Python à Upea\n\n"
-        "Upea est un langage à accolades : les instructions finissent par `;`, les "
-        "blocs sont entre `{ }`, et l'indentation ne compte pas. Toute variable se "
-        "déclare avant son premier usage, une seule fois, avec `tuu` (ou `mau` pour "
-        "une constante) : écrire `compteur = 0;` sans l'avoir déclarée est une "
-        "erreur.\n\n"
+        "Pour qui connaît Python : ce qui change, le tableau des équivalences, et "
+        "comment remplacer ce qu'Upea n'a pas (dictionnaires, ensembles, tri, "
+        "hasard, clavier).\n\n"
+        f"{DIFFERENCES}\n"
         "## Les équivalences\n\n"
         "| Python | Upea |\n|---|---|\n"
         f"{lignes}\n\n"
         "Il n'y a pas d'opérateur de puissance (`x ** 2` : écrivez `x * x`), pas "
-        "d'expression conditionnelle (`a if c else b` : un `ahani`), pas de `//`.\n"
+        "d'expression conditionnelle (`a if c else b` : un `ahani`), pas de `//`.\n\n"
+        f"{RECETTES}"
     )
 
 
@@ -882,3 +1118,83 @@ def texte_sujet(sujet: str, section: str | None = None) -> str:
             raise AideInconnue(
                 f"pas de sujet « {sujet} » ; les sujets : {', '.join(SUJETS)}"
             )
+
+
+# --- Les pages de docs/, générées -----------------------------------------------------
+
+DOCS = DOSSIER.parent / "docs"
+COMMANDE_PAGES = "uv run python -m upea.aide --ecrire"
+_ENTETE_GENEREE = (
+    "<!-- Fichier généré par `upea/aide.py` (`uv run python -m upea.aide --ecrire`) :"
+    " ne pas le modifier à la main. -->\n\n"
+)
+
+
+def pages() -> dict[str, str]:
+    """Les pages de `docs/` que ce module produit : leur nom de fichier et leur texte.
+    Ce sont les mêmes textes que ceux des sujets `apercu` et `depuis_python`."""
+    return {
+        "aide-memoire.md": _ENTETE_GENEREE + APERCU,
+        "depuis-python.md": _ENTETE_GENEREE + texte_depuis_python(),
+    }
+
+
+def ecrire_pages(dossier: Path = DOCS) -> list[Path]:
+    """Écrit les pages dans `dossier` (UTF-8, fins de ligne `\\n`) et rend leurs
+    chemins."""
+    dossier.mkdir(parents=True, exist_ok=True)
+    chemins: list[Path] = []
+    for nom, texte in pages().items():
+        chemin = dossier / nom
+        with chemin.open("w", encoding="utf-8", newline="\n") as fichier:
+            fichier.write(texte)
+        chemins.append(chemin)
+    return chemins
+
+
+def pages_perimees(dossier: Path = DOCS) -> list[str]:
+    """Les pages de `dossier` qui n'existent pas, ou qui ne sont plus celles que le
+    module produit."""
+    perimees: list[str] = []
+    for nom, texte in pages().items():
+        chemin = dossier / nom
+        if not chemin.is_file() or _lire(chemin) != texte:
+            perimees.append(nom)
+    return perimees
+
+
+def main(arguments: list[str] | None = None) -> int:
+    """`python -m upea.aide --ecrire` réécrit les pages ; `--verifier` échoue (code 1)
+    si l'une d'elles ne correspond plus au module."""
+    analyseur = argparse.ArgumentParser(
+        prog="python -m upea.aide",
+        description="Écrit ou vérifie les pages d'aide de docs/ (aide-memoire.md, "
+        "depuis-python.md), produites à partir de upea/aide.py.",
+    )
+    action = analyseur.add_mutually_exclusive_group(required=True)
+    action.add_argument("--ecrire", action="store_true", help="réécrire les pages")
+    action.add_argument(
+        "--verifier", action="store_true", help="échouer si une page est périmée"
+    )
+    analyseur.add_argument(
+        "--dossier", type=Path, default=DOCS, help="le dossier des pages (docs/)"
+    )
+    options = analyseur.parse_args(arguments)
+    for flux in (sys.stdout, sys.stderr):
+        if isinstance(flux, io.TextIOWrapper):  # accents lisibles, même redirigés
+            flux.reconfigure(encoding="utf-8")
+    if options.ecrire:
+        for chemin in ecrire_pages(options.dossier):
+            print(f"écrit : {chemin}")
+        return 0
+    perimees = pages_perimees(options.dossier)
+    for nom in perimees:
+        print(f"page périmée : {nom}", file=sys.stderr)
+    if perimees:
+        print(f"lancez `{COMMANDE_PAGES}`", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
