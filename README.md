@@ -111,7 +111,7 @@ Inspector sont décrits dans [`docs/mcp.md`](docs/mcp.md).
 | [`docs/architecture.md`](docs/architecture.md) | un développeur, le jury | la chaîne de compilation, le prélude, le REPL, le serveur MCP, le rôle de chaque module, les choix de conception |
 | [`docs/mcp.md`](docs/mcp.md) | qui branche le serveur MCP | ses outils, ressources et prompts, les limites du bac à sable, le branchement dans Claude Code, Claude Desktop et MCP Inspector |
 | [`docs/developpement.md`](docs/developpement.md) | un contributeur | l'environnement, les vérifications, l'organisation des tests, la CI, et des recettes : ajouter une prédéfinie, un backend, un mot-clé |
-| [`docs/journal/`](docs/journal/) | qui veut retracer la démarche | les plans de travail successifs |
+| [`docs/journal/`](docs/journal/index.md) | qui veut retracer la démarche | la chronologie du projet, les plans de travail successifs, et le rapport de l'audit du conseil |
 
 ## Qualité
 
