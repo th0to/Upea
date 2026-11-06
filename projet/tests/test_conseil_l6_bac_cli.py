@@ -136,8 +136,7 @@ def test_un_memory_error_libere_l_espace_avant_l_erreur() -> None:
 def test_une_memoire_remplie_de_petits_objets() -> None:
     """La panne était intermittente (deux fois sur trois à 512 Mo) : trois essais."""
     source = (
-        "tuu g = upea {};\ntuu i = 0;\n"
-        "tamau tia { taati(g, i, i + 1); i = i + 1; }\n"
+        "tuu g = upea {};\ntuu i = 0;\ntamau tia { taati(g, i, i + 1); i = i + 1; }\n"
     )
     for _ in range(3):
         resultat = bac_a_sable.executer(source, delai=30)

@@ -96,8 +96,9 @@ def _noms_definis(code: str) -> set[str]:
                 noms.add(nom)
             case ast.Assign(targets=cibles):
                 noms.update(c.id for c in cibles if isinstance(c, ast.Name))
-            case ast.AnnAssign(target=ast.Name(id=nom)) | ast.TypeAlias(
-                name=ast.Name(id=nom)
+            case (
+                ast.AnnAssign(target=ast.Name(id=nom))
+                | ast.TypeAlias(name=ast.Name(id=nom))
             ):
                 noms.add(nom)
             case ast.Import(names=alias) | ast.ImportFrom(names=alias):

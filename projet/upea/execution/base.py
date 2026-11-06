@@ -111,9 +111,7 @@ def _verifier_cle(cle: object, sorte: str, voisine: object = None) -> None:
             f"pas un {_sorte(cle)}"
         )
     if type(cle) is float and not _math.isfinite(cle):  # un infini, ou un NaN
-        raise _Erreur(
-            f"une clé de {sorte} doit être un nombre fini, pas {_texte(cle)}"
-        )
+        raise _Erreur(f"une clé de {sorte} doit être un nombre fini, pas {_texte(cle)}")
     if voisine is not None and isinstance(voisine, str) != isinstance(cle, str):
         raise _Erreur(
             f"clés incomparables dans un {sorte} : {_sorte(voisine)} et {_sorte(cle)}"

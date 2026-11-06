@@ -37,3 +37,6 @@ jobs:
 
       - name: ruff
         run: uv run ruff check projet
+
+      - name: ruff format
+        run: uv run ruff format --check projet

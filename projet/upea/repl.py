@@ -105,9 +105,7 @@ class _Session:
         tampon = io.StringIO()
         try:
             with redirect_stdout(tampon):
-                executer_code(
-                    code, sourcemap, self.espace, nom=nom, cartes=self.cartes
-                )
+                executer_code(code, sourcemap, self.espace, nom=nom, cartes=self.cartes)
         except ErreurUpea as erreur:  # d'exécution, ou de compilation (le filet)
             return tampon.getvalue() + formater(erreur, source, FICHIER) + "\n"
         except KeyboardInterrupt:
