@@ -1,0 +1,164 @@
+tuu graine = [42];
+
+ohipa alea(n) {
+  graine[0] = (graine[0] * 1103515245 + 12345) % 2147483648;
+  hoi numera(graine[0] / 65536) % n;
+}
+
+ohipa transform(taq) {
+  tuu chaine = "";
+  tataitahi ligne roto taq {
+    tataitahi x roto ligne {
+      chaine = chaine + parau(x);
+    }
+  }
+  hoi chaine;
+}
+
+ohipa trouve_zero(chaine, val) {
+  tuu s = 0;
+  tuu i = 0;
+  tamau i < roa(chaine) {
+    ahani chaine[i] == val { s = i; }
+    i = i + 1;
+  }
+  hoi s;
+}
+
+ohipa change(taq, sens) {
+  tuu s = trouve_zero(taq, "0");
+  tuu l = [];
+  tataitahi c roto taq { amui(l, numera(c)); }
+  tuu k = s;
+  ahani sens == "h" { k = s - 3; }
+  ahani sens == "b" { k = s + 3; }
+  ahani sens == "d" { k = s + 1; }
+  ahani sens == "g" { k = s - 1; }
+  tuu g = l[k];
+  l[k] = l[s];
+  l[s] = g;
+  tuu out = "";
+  tataitahi x roto l { out = out + parau(x); }
+  hoi out;
+}
+
+ohipa inversions(chaine) {
+  tuu cpt = 0;
+  tuu i = 1;
+  tamau i < 9 {
+    tuu pos_i = trouve_zero(chaine, parau(i));
+    tuu j = i;
+    tamau j < 9 {
+      ahani trouve_zero(chaine, parau(j)) < pos_i { cpt = cpt + 1; }
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  hoi cpt;
+}
+
+ohipa melange(l) {
+  tuu fini = hape;
+  tamau eiaha fini {
+    tuu i = 0;
+    tamau i < 3 {
+      tuu a = alea(3);
+      tuu b = alea(3);
+      tuu c = alea(3);
+      tuu m = l[a][c];
+      l[a][c] = l[c][b];
+      l[c][b] = m;
+      i = i + 1;
+    }
+    ahani inversions(transform(l)) % 2 == 0 { fini = tia; }
+  }
+  hoi l;
+}
+
+ohipa haut(j) {
+  tuu p = j[1];
+  ahani p[0] > 0 {
+    tuu t = j[0];
+    tuu m = t[p[0]][p[1]];
+    t[p[0]][p[1]] = t[p[0] - 1][p[1]];
+    t[p[0] - 1][p[1]] = m;
+    p[0] = p[0] - 1;
+  }
+}
+ohipa bas(j) {
+  tuu p = j[1];
+  ahani p[0] < 2 {
+    tuu t = j[0];
+    tuu m = t[p[0]][p[1]];
+    t[p[0]][p[1]] = t[p[0] + 1][p[1]];
+    t[p[0] + 1][p[1]] = m;
+    p[0] = p[0] + 1;
+  }
+}
+ohipa droite(j) {
+  tuu p = j[1];
+  ahani p[1] < 2 {
+    tuu t = j[0];
+    tuu m = t[p[0]][p[1]];
+    t[p[0]][p[1]] = t[p[0]][p[1] + 1];
+    t[p[0]][p[1] + 1] = m;
+    p[1] = p[1] + 1;
+  }
+}
+ohipa gauche(j) {
+  tuu p = j[1];
+  ahani p[1] > 0 {
+    tuu t = j[0];
+    tuu m = t[p[0]][p[1]];
+    t[p[0]][p[1]] = t[p[0]][p[1] - 1];
+    t[p[0]][p[1] - 1] = m;
+    p[1] = p[1] - 1;
+  }
+}
+
+ohipa possible(p, sens) {
+  ahani sens == "h" { hoi eiaha (0 <= p ma p <= 2); }
+  ahani sens == "b" { hoi eiaha (6 <= p ma p <= 8); }
+  ahani sens == "d" { hoi eiaha (p == 2 anei p == 5 anei p == 8); }
+  hoi eiaha (p == 0 anei p == 3 anei p == 6);
+}
+
+// arbre = [valeur, enfants] ; explore + graph fusionnes (pas de recursion mutuelle)
+ohipa graph(suit, maximum, chemin, visiter) {
+  ahani suit[0] == "012345678" anei chemin == maximum { hoi chemin; }
+  tuu p = trouve_zero(suit[0], "0");
+  tataitahi sens roto ["h", "b", "d", "g"] {
+    ahani possible(p, sens) {
+      amui(visiter, suit[0]);
+      amui(suit[1], [change(suit[0], sens), []]);
+      tataitahi e roto suit[1] {
+        ahani eiaha (e[0] roto visiter) {
+          graph(e, maximum, chemin + 1, visiter);
+        }
+      }
+    }
+  }
+}
+
+ohipa compte(a) {
+  tuu n = 1;
+  tataitahi e roto a[1] { n = n + compte(e); }
+  hoi n;
+}
+
+tuu j = [[[0, 1, 2], [3, 4, 5], [6, 7, 8]], [0, 0]];
+faaite "melange :";
+tuu m = melange(j[0]);
+faaite m;
+faaite "chaine : " + transform(m);
+
+tuu jeu = [[[0, 1, 2], [3, 4, 5], [6, 7, 8]], [0, 0]];
+droite(jeu); bas(jeu); gauche(jeu); haut(jeu);
+faaite jeu;
+
+tuu g = [transform(m), []];
+tuu visiter = [];
+faaite "resultat graph (maximum 4) : ";
+faaite graph(g, 4, 0, visiter);
+faaite "noeuds du graphe : ";
+faaite compte(g);

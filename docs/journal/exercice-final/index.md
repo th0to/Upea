@@ -7,7 +7,7 @@ l'arrête. Il se fait en plusieurs sessions, séparées par un travail de correc
 | Session | Date | Serveur | Appels | Issue |
 |---|---|---|---|---|
 | [1](session-1-rapport.md) | 6 novembre 2026 | 6 outils (le pont ne transmettait que les outils) | 5 | échec : aucune référence du langage, programme non traduit |
-| [2a](session-2a-rapport.md) | non consignée | 6 outils (serveur lancé avant les lots A0 à E, qui gardait l'ancien code chargé) | non consigné | non consignée : le fichier ne contient pas de rapport |
+| [2a](session-2a-rapport.md) | 6 novembre 2026 | 6 outils (serveur lancé avant les lots A0 à E, qui gardait l'ancien code chargé) | 17, dont une quinzaine pour deviner les mots-clés | traduction partielle et approchée ([programme](taquin.upea)) ; le « sinon » n'a jamais été trouvé |
 | [2b](session-2b-rapport.md) | 6 novembre 2026 | 8 outils (serveur redémarré) | 6, dont le chargement des schémas (5 au serveur : `aide` trois fois, `verifier`, `executer`) | programme traduit ; `verifier` l'accepte du premier coup ; `executer` : succès, 324 octets de sortie |
 
 Entre la session 1 et la session 2, les lots A0, C, A, B, D et E (voir plus bas). La
