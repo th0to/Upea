@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from types import CodeType
 
+from .aide import ajouter_conseils
 from .backend import Backend, Sortie
 from .erreurs import (
     ErreurExecution,
@@ -88,14 +89,20 @@ def _sans_debordement() -> Iterator[None]:
 def compiler(source: str, *, types: bool = True) -> Compilation:
     """Analyse syntaxique puis sémantique. Lève `ErreursMultiples`."""
     with _sans_debordement():
-        programme = parse(source)
-        return Compilation(programme, analyser(programme, types=types))
+        try:
+            programme = parse(source)
+            return Compilation(programme, analyser(programme, types=types))
+        except ErreursMultiples as erreurs:
+            raise ajouter_conseils(erreurs, source) from None
 
 
 def analyser_syntaxe(source: str) -> Programme:
     """L'arbre syntaxique seul, sans analyse sémantique. Lève `ErreursMultiples`."""
     with _sans_debordement():
-        return parse(source)
+        try:
+            return parse(source)
+        except ErreursMultiples as erreurs:
+            raise ajouter_conseils(erreurs, source) from None
 
 
 def transpiler(

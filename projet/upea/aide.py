@@ -15,12 +15,22 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from contextlib import suppress
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
+from .erreurs import (
+    ErreurLexicale,
+    ErreurSemantique,
+    ErreursMultiples,
+    ErreurSyntaxe,
+    ErreurUpea,
+)
+from .lexer import tokenize
 from .predefinies import ABREVIATIONS, PREDEFINIES
-from .tokens import MOTS_CLES
+from .tokens import MOTS_CLES, Token
+from .tokens import TokenKind as T
 
 #: Le dossier `projet/` : la spécification et les exemples.
 DOSSIER = Path(__file__).resolve().parent.parent
@@ -409,3 +419,383 @@ ni comparaisons chaînées, ni `for … in` ni `range` ni `len` (voir `tataitahi
 Pour le détail : `aide("depuis_python")` (la traduction pas à pas), \
 `aide("specification")`, `exemples()`.
 """
+
+
+# --- Les faux amis --------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FauxAmi:
+    """Un mot que l'on écrit par habitude, et qui n'est pas d'Upea.
+
+    `equivalents` sont les mots d'Upea que le conseil cite (des mots-clés ou des
+    fonctions prédéfinies : un test le vérifie). `absent` : rien ne le remplace.
+    `intention` : le mot est aussi un nom de variable naturel en français ; le conseil
+    reste alors au conditionnel (« si vous vouliez … »).
+    """
+
+    mots: tuple[str, ...]
+    langage: str
+    conseil: str
+    equivalents: tuple[str, ...] = ()
+    absent: bool = False
+    intention: str | None = None
+
+
+def _faux(
+    mots: str,
+    langage: str,
+    conseil: str,
+    equivalents: str = "",
+    *,
+    absent: bool = False,
+    intention: str | None = None,
+) -> FauxAmi:
+    return FauxAmi(
+        tuple(mots.split()),
+        langage,
+        conseil,
+        tuple(equivalents.split()),
+        absent,
+        intention,
+    )
+
+
+_PYTHON = "Python"
+_FRANCAIS = "français"
+_AUTRE = "autres langages"
+
+#: La table, courte et assumée. Les mots d'Upea cités viennent de la table de la
+#: spécification ; aucun mot de la table n'est un mot-clé d'Upea ni une prédéfinie
+#: (sinon il ne serait pas un faux ami : une variable peut donc porter ces noms).
+FAUX_AMIS: tuple[FauxAmi, ...] = (
+    _faux("if", _PYTHON, "écrivez 'ahani'", "ahani"),
+    _faux("elif", _PYTHON, "écrivez 'taae ahani'", "taae ahani"),
+    _faux("else", _PYTHON, "écrivez 'taae'", "taae"),
+    _faux("while", _PYTHON, "écrivez 'tamau'", "tamau"),
+    _faux(
+        "for",
+        _PYTHON,
+        "écrivez 'tataitahi x roto liste', ou 'tataitahi i roto a..b'",
+        "tataitahi roto",
+    ),
+    _faux("in", _PYTHON, "écrivez 'roto'", "roto"),
+    _faux("def", _PYTHON, "écrivez 'ohipa'", "ohipa"),
+    _faux("return", _PYTHON, "écrivez 'hoi'", "hoi"),
+    _faux("break", _PYTHON, "écrivez 'faaea'", "faaea"),
+    _faux("continue", _PYTHON, "écrivez 'haere'", "haere"),
+    _faux("print", _PYTHON, "écrivez 'faaite'", "faaite"),
+    _faux("True", _PYTHON, "écrivez 'tia'", "tia"),
+    _faux("False", _PYTHON, "écrivez 'hape'", "hape"),
+    _faux("None", _PYTHON, "écrivez 'aore'", "aore"),
+    _faux("and", _PYTHON, "écrivez 'ma'", "ma"),
+    _faux("or", _PYTHON, "écrivez 'anei'", "anei"),
+    _faux("not", _PYTHON, "écrivez 'eiaha'", "eiaha"),
+    _faux("pass", _PYTHON, "écrivez un bloc vide : '{ }'"),
+    _faux("len", _PYTHON, "écrivez 'roa(x)'", "roa"),
+    _faux(
+        "range", _PYTHON, "écrivez 'a..b' (ou 'a..=b') dans un 'tataitahi'", "tataitahi"
+    ),
+    _faux("append", _PYTHON, "écrivez 'amui(liste, x)'", "amui"),
+    _faux("int", _PYTHON, "écrivez 'numera(x)'", "numera"),
+    _faux("float", _PYTHON, "écrivez 'tuhaa(x)'", "tuhaa"),
+    _faux("str", _PYTHON, "écrivez 'parau(x)'", "parau"),
+    _faux(
+        "input",
+        _PYTHON,
+        "un programme Upea ne lit pas le clavier ; écrivez les valeurs dans le "
+        "programme",
+        absent=True,
+    ),
+    _faux(
+        "random randint",
+        _PYTHON,
+        'pas d\'aléatoire ; voyez aide("depuis_python")',
+        absent=True,
+    ),
+    _faux(
+        "import",
+        _PYTHON,
+        "pas de modules ; les fonctions prédéfinies sont déjà là",
+        absent=True,
+    ),
+    _faux(
+        "class",
+        _PYTHON,
+        "pas de classes ; voyez 'tumu' et 'upea' pour les structures",
+        "tumu upea",
+        absent=True,
+    ),
+    _faux(
+        "lambda",
+        _PYTHON,
+        "pas de fonctions comme valeurs ; déclarez une 'ohipa' au niveau global",
+        "ohipa",
+        absent=True,
+    ),
+    _faux("si", _FRANCAIS, "écrivez 'ahani'", "ahani"),
+    _faux(
+        "sinon",
+        _FRANCAIS,
+        "écrivez 'taae' ('taae ahani' pour « sinon si »)",
+        "taae ahani",
+    ),
+    _faux("tantque", _FRANCAIS, "écrivez 'tamau'", "tamau"),
+    _faux(
+        "pour",
+        _FRANCAIS,
+        "écrivez 'tataitahi x roto liste', ou 'tataitahi i roto a..b'",
+        "tataitahi roto",
+        intention="écrire une boucle",
+    ),
+    _faux(
+        "dans",
+        _FRANCAIS,
+        "écrivez 'roto'",
+        "roto",
+        intention="écrire « dans » (une appartenance, un parcours)",
+    ),
+    _faux(
+        "fonction",
+        _FRANCAIS,
+        "écrivez 'ohipa'",
+        "ohipa",
+        intention="déclarer une fonction",
+    ),
+    _faux("retourner", _FRANCAIS, "écrivez 'hoi'", "hoi"),
+    _faux(
+        "retour",
+        _FRANCAIS,
+        "écrivez 'hoi'",
+        "hoi",
+        intention="renvoyer une valeur",
+    ),
+    _faux("afficher", _FRANCAIS, "écrivez 'faaite'", "faaite"),
+    _faux(
+        "vrai", _FRANCAIS, "écrivez 'tia'", "tia", intention="écrire la valeur « vrai »"
+    ),
+    _faux(
+        "faux",
+        _FRANCAIS,
+        "écrivez 'hape'",
+        "hape",
+        intention="écrire la valeur « faux »",
+    ),
+    _faux(
+        "rien",
+        _FRANCAIS,
+        "écrivez 'aore'",
+        "aore",
+        intention="écrire « rien » (l'absence de valeur)",
+    ),
+    _faux("et", _FRANCAIS, "écrivez 'ma'", "ma"),
+    _faux("ou", _FRANCAIS, "écrivez 'anei'", "anei"),
+    _faux(
+        "non",
+        _FRANCAIS,
+        "écrivez 'eiaha'",
+        "eiaha",
+        intention="écrire une négation",
+    ),
+    _faux("function", _AUTRE, "écrivez 'ohipa'", "ohipa"),
+    _faux("let var", _AUTRE, "écrivez 'tuu'", "tuu"),
+    _faux("const", _AUTRE, "écrivez 'mau'", "mau"),
+    _faux("true", _AUTRE, "écrivez 'tia'", "tia"),
+    _faux("false", _AUTRE, "écrivez 'hape'", "hape"),
+    _faux("null", _AUTRE, "écrivez 'aore'", "aore"),
+)
+
+_PAR_MOT: dict[str, FauxAmi] = {mot: f for f in FAUX_AMIS for mot in f.mots}
+
+
+def conseil_de(faux: FauxAmi, mot: str) -> str:
+    """Le conseil pour `mot`, sans son préfixe « — » : ce qu'on ajoute à un message."""
+    if faux.absent:
+        return f"'{mot}' n'existe pas en Upea : {faux.conseil}"
+    if faux.intention:
+        return (
+            f"'{mot}' n'est pas un mot-clé d'Upea ; "
+            f"si vous vouliez {faux.intention}, {faux.conseil}"
+        )
+    return f"'{mot}' n'est pas un mot-clé d'Upea : {faux.conseil}"
+
+
+def texte_faux_amis() -> str:
+    """La table des faux amis, pour le sujet `mots_cles` : ce qu'on écrit par
+    habitude, et ce que dit le conseil."""
+    lignes: list[str] = []
+    for faux in FAUX_AMIS:
+        mots = ", ".join(f"`{mot}`" for mot in faux.mots)
+        conseil = faux.conseil
+        if faux.intention:
+            conseil = f"si vous vouliez {faux.intention}, {conseil}"
+        lignes.append(f"| {mots} | {faux.langage} | {conseil} |")
+    return (
+        "## Les mots d'un autre langage\n\n"
+        "Ces mots ne sont pas d'Upea : `verifier` ajoute un conseil à l'erreur "
+        "qu'ils causent. Une variable peut pourtant porter l'un de ces noms, une "
+        "fois déclarée.\n\n"
+        "| Mot | D'où | Conseil |\n|---|---|---|\n" + "\n".join(lignes) + "\n"
+    )
+
+
+# --- Ajouter les conseils aux erreurs -------------------------------------------------
+
+#: La suggestion que `semantique` ajoute à « 'x' n'est pas déclaré », que le conseil
+#: d'un faux ami, ou de déclaration, remplace (elle proposerait une prédéfinie sans
+#: rapport : `vrai` → `rahi`, `compteur` → `composantes`).
+SUGGESTION = re.compile(r" \(vouliez-vous dire '[^']*' \?\)$")
+_NON_DECLARE = re.compile(r"^'([^']+)' n'est pas déclaré")
+_OPERATEURS_COMPOSES = {
+    T.PLUS: "+",
+    T.MOINS: "-",
+    T.ETOILE: "*",
+    T.BARRE: "/",
+    T.POURCENT: "%",
+}
+
+
+class _Contexte:
+    """Les tokens du source, et les noms que le programme déclare quelque part."""
+
+    def __init__(self, source: str) -> None:
+        self.jetons: list[Token] = []
+        with suppress(ErreurLexicale):  # les tokens lus avant l'erreur suffisent
+            self.jetons.extend(tokenize(source))
+        self.declares = self._declares()
+
+    def _declares(self) -> frozenset[str]:
+        """Les noms qui suivent `tuu`, `mau`, `ohipa` ou `tataitahi`, et les paramètres
+        des fonctions : un nom que le programmeur déclare n'est jamais un faux ami."""
+        jetons = self.jetons
+        noms: set[str] = set()
+        for i, jeton in enumerate(jetons[:-1]):
+            declare = jeton.kind in (T.TUU, T.MAU, T.OHIPA, T.TATAITAHI)
+            if declare and jetons[i + 1].kind is T.IDENT:
+                noms.add(jetons[i + 1].lexeme)
+            if jeton.kind is T.OHIPA and i + 2 < len(jetons):
+                j = i + 2
+                if jetons[j].kind is T.PAR_G:
+                    j += 1
+                    while j < len(jetons) and jetons[j].kind not in (T.PAR_D, T.FIN):
+                        debut = jetons[j - 1].kind in (T.PAR_G, T.VIRGULE)
+                        if jetons[j].kind is T.IDENT and debut:
+                            noms.add(jetons[j].lexeme)
+                        j += 1
+        return frozenset(noms)
+
+    def premier_depuis(self, ligne: int, colonne: int) -> int:
+        """L'indice du premier token qui commence à cette position ou après."""
+        for i, jeton in enumerate(self.jetons):
+            p = jeton.position
+            if (p.ligne, p.colonne) >= (ligne, colonne):
+                return i
+        return len(self.jetons)
+
+    def mot_en(self, i: int) -> tuple[str, int] | None:
+        """Le mot de l'identifiant d'indice `i` (« tant que » compte pour un seul) et
+        l'indice de son premier token ; `None` si ce n'est pas un identifiant."""
+        jetons = self.jetons
+        if not 0 <= i < len(jetons) or jetons[i].kind is not T.IDENT:
+            return None
+        mot = jetons[i].lexeme
+        suivant = jetons[i + 1].lexeme if i + 1 < len(jetons) else ""
+        if mot == "tant" and suivant == "que":
+            return "tant que", i
+        if mot == "que" and i > 0 and jetons[i - 1].lexeme == "tant":
+            return "tant que", i - 1
+        return mot, i
+
+    def faux_ami(self, i: int) -> tuple[FauxAmi, str] | None:
+        """Le faux ami que désigne le token d'indice `i`, avec le mot tel qu'écrit ;
+        `None` s'il n'y en a pas, si le programme déclare ce nom, ou si le mot qui le
+        précède est déjà l'équivalent d'Upea (`hoi retour` : on écrit déjà `hoi`)."""
+        trouve = self.mot_en(i)
+        if trouve is None:
+            return None
+        mot, debut = trouve
+        faux = _PAR_MOT.get(mot.replace(" ", ""))
+        if faux is None or mot in self.declares:
+            return None
+        if debut > 0 and self.jetons[debut - 1].lexeme in faux.equivalents:
+            return None
+        return faux, mot
+
+
+def _conseil_de_syntaxe(contexte: _Contexte, ligne: int, colonne: int) -> str | None:
+    """Le conseil pour une erreur de syntaxe à cette position : le token fautif, ou
+    celui qui le précède (« ';' attendu après l'expression, trouvé 'x' » signale la
+    fin de `si` dans `si x > 1`)."""
+    jetons = contexte.jetons
+    k = contexte.premier_depuis(ligne, colonne)
+    if 1 <= k < len(jetons) and jetons[k].kind is T.EGAL:
+        operateur = jetons[k - 1]
+        if (
+            operateur.kind in _OPERATEURS_COMPOSES
+            and operateur.fin == jetons[k].position
+        ):
+            avant = jetons[k - 2] if k >= 2 else None
+            nom = avant.lexeme if avant is not None and avant.kind is T.IDENT else "x"
+            signe = _OPERATEURS_COMPOSES[operateur.kind]
+            return (
+                "Upea n'a pas d'affectation composée : "
+                f"écrivez '{nom} = {nom} {signe} …;'"
+            )
+    for i in (k - 1, k):
+        trouve = contexte.faux_ami(i)
+        if trouve is not None:
+            return conseil_de(*trouve)
+    return None
+
+
+def _conseil_de_nom(
+    contexte: _Contexte, message: str, ligne: int, colonne: int
+) -> str | None:
+    """Le message complété d'un conseil, pour « 'x' n'est pas déclaré » : la
+    déclaration d'abord quand `x` est la cible d'une affectation, puis la table."""
+    reconnu = _NON_DECLARE.match(message)
+    if reconnu is None:
+        return None
+    nom = reconnu[1]
+    jetons = contexte.jetons
+    k = contexte.premier_depuis(ligne, colonne)
+    if k >= len(jetons) or jetons[k].lexeme != nom or jetons[k].kind is not T.IDENT:
+        return None
+    base = SUGGESTION.sub("", message)
+    cible = k + 1 < len(jetons) and jetons[k + 1].kind is T.EGAL
+    if cible and not (k > 0 and jetons[k - 1].kind in (T.TUU, T.MAU)):
+        return f"{base} — déclarez-la d'abord : tuu {nom} = …;"
+    trouve = contexte.faux_ami(k)
+    if trouve is not None:
+        return f"{base} — {conseil_de(*trouve)}"
+    return None
+
+
+def ajouter_conseils(erreurs: ErreursMultiples, source: str) -> ErreursMultiples:
+    """Les mêmes erreurs, où chaque erreur de syntaxe ou de noms causée par un mot
+    d'un autre langage porte, à la fin de son message, un conseil. Les messages
+    d'origine sont gardés tels quels devant ; les erreurs de type, lexicales et les
+    avertissements ne changent pas."""
+    contexte: _Contexte | None = None
+    nouvelles: list[ErreurUpea] = []
+    change = False
+    for erreur in erreurs.erreurs:
+        position = erreur.position
+        if position is None or type(erreur) not in (ErreurSyntaxe, ErreurSemantique):
+            nouvelles.append(erreur)
+            continue
+        if contexte is None:
+            contexte = _Contexte(source)
+        if type(erreur) is ErreurSyntaxe:
+            conseil = _conseil_de_syntaxe(contexte, position.ligne, position.colonne)
+            message = None if conseil is None else f"{erreur.message} — {conseil}"
+        else:
+            message = _conseil_de_nom(
+                contexte, erreur.message, position.ligne, position.colonne
+            )
+        if message is None:
+            nouvelles.append(erreur)
+        else:
+            nouvelles.append(type(erreur)(message, position))
+            change = True
+    return ErreursMultiples(nouvelles) if change else erreurs
