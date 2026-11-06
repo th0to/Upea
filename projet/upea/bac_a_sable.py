@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import os
 import secrets
 import subprocess
@@ -35,6 +36,9 @@ PLAFOND = 64 * 1024
 #: La mémoire d'un programme, interpréteur compris (en octets) : sans plafond, un
 #: texte doublé à chaque tour occupe plusieurs Go avant la fin du délai.
 PLAFOND_MEMOIRE = 512 * 1024**2
+#: Le temps CPU de l'enfant, en multiple du délai : une seconde barrière, si le parent
+#: meurt avant de l'arrêter (le temps CPU ne dépasse jamais le temps réel).
+MULTIPLE_CPU = 2
 #: Ce que l'on garde au plus de la sortie d'erreur d'un enfant en panne.
 FIN_DES_ERREURS = 2000
 
@@ -104,6 +108,7 @@ def executer(
         "backend": backend,
         "plafond": plafond,
         "memoire": memoire,
+        "delai": delai,
         "marqueur": marqueur.decode("ascii"),
     }
     enfant = subprocess.Popen(
@@ -131,20 +136,46 @@ def executer(
         raise DelaiDepasse(delai, _texte(sortie), tronquee) from None
     position = sortie.rfind(marqueur)
     if position < 0:
+        if b"MemoryError" in erreurs:
+            # L'enfant n'a même pas pu rédiger son résultat : la mémoire était pleine.
+            return _memoire_depassee(source, sortie, plafond, memoire)
         fin = _texte(erreurs).strip()[-FIN_DES_ERREURS:]
         raise EnfantEnPanne(
             f"le sous-processus s'est arrêté sans résultat (code {enfant.returncode})"
             + (f" :\n{fin}" if fin else "")
         )
-    resultat = json.loads(sortie[position + len(marqueur) :])
+    try:
+        resultat = json.loads(sortie[position + len(marqueur) :])
+        return Execution(
+            statut=resultat["statut"],
+            code_retour=resultat["code_retour"],
+            sortie=_texte(sortie[:position]),
+            tronquee=resultat["tronquee"],
+            octets=resultat["octets"],
+            diagnostics=tuple(Diagnostic(**d) for d in resultat["diagnostics"]),
+            rapport=resultat["rapport"],
+        )
+    except (ValueError, KeyError, TypeError) as illisible:
+        raise EnfantEnPanne(f"résultat illisible ({illisible})") from None
+
+
+def _message_memoire(memoire: int) -> str:
+    return f"mémoire dépassée : un programme a au plus {memoire // 1024**2} Mo"
+
+
+def _memoire_depassee(
+    source: str, sortie: bytes, plafond: int, memoire: int
+) -> Execution:
+    """Le résultat d'un enfant mort de `MemoryError` sans avoir rien rendu."""
+    erreur = ErreurExecution(_message_memoire(memoire))
     return Execution(
-        statut=resultat["statut"],
-        code_retour=resultat["code_retour"],
-        sortie=_texte(sortie[:position]),
-        tronquee=resultat["tronquee"],
-        octets=resultat["octets"],
-        diagnostics=tuple(Diagnostic(**d) for d in resultat["diagnostics"]),
-        rapport=resultat["rapport"],
+        statut="erreur_execution",
+        code_retour=3,
+        sortie=_texte(sortie[:plafond]),
+        tronquee=len(sortie) > plafond - 4,
+        octets=len(sortie),
+        diagnostics=diagnostics(erreur),
+        rapport=rapport([erreur], source),
     )
 
 
@@ -199,25 +230,33 @@ class _SortiePlafonnee(io.TextIOBase):
         return len(texte)
 
 
-def _plafonner_la_memoire(octets: int) -> bool:
-    """Borne la mémoire de ce processus : au-delà, une allocation lève `MemoryError`.
+def _plafonner(octets: int, secondes: float) -> bool:
+    """Borne la mémoire de ce processus (au-delà, une allocation lève `MemoryError`) et
+    son temps CPU (au-delà, le système l'arrête : si le parent meurt, l'enfant ne
+    tourne pas sans fin).
 
-    Rend `False` si la plateforme ne le permet pas (le programme tourne alors sans
+    Rend `False` si la mémoire ne peut pas être bornée (le programme tourne alors sans
     plafond de mémoire).
     """
     if sys.platform == "win32":
-        return _job_windows(octets)
-    elif sys.platform == "linux":
+        return _job_windows(octets, secondes)
+    else:
         import resource
 
-        resource.setrlimit(resource.RLIMIT_AS, (octets, octets))
-        return True
-    else:  # macOS n'applique pas RLIMIT_AS
-        return False
+        cpu = math.ceil(secondes)
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu + 1))
+        # Le `else` sert à mypy : sous Linux, un `return` après le `if` serait
+        # « unreachable » (warn_unreachable).
+        if sys.platform == "linux":
+            resource.setrlimit(resource.RLIMIT_AS, (octets, octets))
+            return True
+        else:  # macOS n'applique pas RLIMIT_AS
+            return False
 
 
-def _job_windows(octets: int) -> bool:
-    """Place ce processus dans un *job object* qui limite sa mémoire."""
+def _job_windows(octets: int, secondes: float) -> bool:
+    """Place ce processus dans un *job object* qui limite sa mémoire et son temps
+    CPU (en mode utilisateur)."""
     # Jamais appelée ailleurs que sous Windows : ce test sert à mypy, qui, sous
     # Linux ou macOS, ne connaît pas ctypes.WinDLL et saute alors le `else`. Le
     # `else` est nécessaire : du code après le `return` serait « unreachable »
@@ -251,6 +290,7 @@ def _job_windows(octets: int) -> bool:
                 ("PeakJobMemoryUsed", ctypes.c_size_t),
             ]
 
+        job_object_limit_process_time = 0x2
         job_object_limit_process_memory = 0x100
         job_object_extended_limit_information = 9
         poignee = wintypes.HANDLE
@@ -265,8 +305,12 @@ def _job_windows(octets: int) -> bool:
         ]
         noyau.AssignProcessToJobObject.argtypes = [poignee, poignee]
         limites = LimitesEtendues()
-        limites.Basic.LimitFlags = job_object_limit_process_memory
+        limites.Basic.LimitFlags = (
+            job_object_limit_process_memory | job_object_limit_process_time
+        )
         limites.ProcessMemoryLimit = octets
+        # En unités de 100 ns.
+        limites.Basic.PerProcessUserTimeLimit = int(secondes * 10_000_000)
         # La poignée du job reste ouverte jusqu'à la fin du processus.
         job = noyau.CreateJobObjectW(None, None)
         return bool(
@@ -297,11 +341,8 @@ def _executer_ici(
     except ErreursMultiples as echec:  # CPython refuse le code généré : le filet
         return "erreur_compilation", 1, [*signales, echec]
     except ErreurExecution as erreur:
-        if isinstance(erreur.__cause__, MemoryError):
-            erreur = ErreurExecution(
-                f"mémoire dépassée : un programme a au plus {memoire // 1024**2} Mo",
-                erreur.position,
-            )
+        if erreur.message == compilateur.MEMOIRE_EPUISEE:
+            erreur = ErreurExecution(_message_memoire(memoire), erreur.position)
         return "erreur_execution", 3, [*signales, erreur]
     return "succes", 0, signales
 
@@ -309,7 +350,7 @@ def _executer_ici(
 def _enfant() -> int:
     requete = json.loads(sys.stdin.buffer.read())
     sys.stdin.close()
-    if not _plafonner_la_memoire(requete["memoire"]):
+    if not _plafonner(requete["memoire"], MULTIPLE_CPU * requete["delai"]):
         print("upea : pas de plafond de mémoire sur ce système", file=sys.stderr)
     canal = sys.stdout.buffer
     sortie = _SortiePlafonnee(canal, requete["plafond"])
@@ -332,7 +373,9 @@ def _enfant() -> int:
         "rapport": texte,
     }
     canal.write(requete["marqueur"].encode("ascii"))
-    canal.write(json.dumps(resultat, ensure_ascii=False).encode("utf-8"))
+    # En ASCII : une demi-paire de substitution venue du source (U+D800) s'écrit
+    # avec un échappement JSON, et ne casse pas le résultat.
+    canal.write(json.dumps(resultat, ensure_ascii=True).encode("ascii"))
     canal.flush()
     return 0
 

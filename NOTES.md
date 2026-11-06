@@ -87,6 +87,7 @@ lot est l'identifiant du rapport, cité dans le message du commit.
 | L2 | *Limites assumées* | une puce ajoutée : littéral trop grand refusé, trop petit lu `0.0`, `inf` et `nan` non relisibles et refusés comme nœuds, poids et clés | l'exposant rend l'infini facile à écrire (`1e999`), qui donnait `NameError` avec un backend et `inf` avec l'autre ; un NaN dédoublait les nœuds, disparaissait comme clé d'arbre ordonné et faisait planter `bellman_ford` |
 | L4 | *Types*, règles | une puce ajoutée : un tas max s'annote `ahu`, l'annotation ne fixe pas l'ordre, `ahunui` n'est pas un nom de type | `tuu h: ahunui = …` donnait « type attendu, trouvé 'ahunui' » sans dire quoi écrire ; le message le dit désormais, et la règle est écrite |
 | M6 | *Utilisation*, codes de retour | « `130` exécution interrompue (Ctrl-C) » ajouté | Ctrl-C affichait un traceback dans `run` et tuait la session du REPL (déclarations perdues) ; `run` s'arrête désormais avec le code 130, la convention des shells, et le REPL répond « interrompu » |
+| L6 | *Utilisation*, codes de retour | « `1` erreur de compilation (ou fichier illisible, ou impossible à écrire) » | `transpile -o` vers un dossier absent et `fmt --ecrire` sur un fichier en lecture seule affichaient un traceback ; ils donnent désormais un message et le code 1, comme un fichier illisible |
 
 ## Outils Python mobilisés (refactorisation)
 
@@ -131,6 +132,8 @@ lot est l'identifiant du rapport, cité dans le message du commit.
   - les avertissements ne sont connus que d'un programme sans erreur (comme avec
     `check`) ;
   - le délai de 5 s compte le démarrage de Python (0,3 à 0,7 s ici) ;
+  - l'enfant se limite lui-même à deux fois le délai en temps CPU (*job object* sous Windows, `RLIMIT_CPU` ailleurs) : si le serveur meurt pendant une boucle sans fin, l'enfant ne tourne pas indéfiniment ;
+  - **limite connue** : le tout premier lancement d'une session, à froid (dossier OneDrive, antivirus), peut dépasser le délai de 5 s à lui seul. Le test `test_extension_18_bac_a_sable.py::test_un_exemple_donne_sa_sortie_attendue` échoue alors une fois, puis passe : c'est arrivé une fois sur trois suites complètes pendant l'étape 3. Le délai n'a pas été allongé ;
   - aucun plafond de mémoire sous macOS, qui n'applique pas `RLIMIT_AS` ;
   - les résultats des outils sont des dataclasses sans `slots` : avec `slots`,
     pydantic (dans le SDK) perd leur schéma.

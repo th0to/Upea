@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import traceback
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from .compilateur import (
@@ -36,6 +37,10 @@ def _erreur(message: str) -> None:
 
 
 def _lire(fichier: str) -> str | None:
+    # Sous Windows, lire un dossier donne « Permission denied », pas IsADirectoryError.
+    if Path(fichier).is_dir():
+        _erreur(f"upea : {fichier} est un dossier, pas un fichier")
+        return None
     try:
         return Path(fichier).read_text(encoding="utf-8-sig")
     except FileNotFoundError:
@@ -47,6 +52,39 @@ def _lire(fichier: str) -> str | None:
     except OSError as erreur:
         _erreur(f"upea : impossible de lire {fichier} ({erreur.strerror})")
     return None
+
+
+def _ecrire(chemin: Path, ecriture: Callable[[Path], object]) -> bool:
+    """Écrit `chemin` par `ecriture` ; un échec (dossier absent, fichier en lecture
+    seule, un dossier à la place du fichier) est signalé, sans traceback."""
+    try:
+        ecriture(chemin)
+    except OSError as erreur:
+        _erreur(f"upea : impossible d'écrire {chemin} ({erreur.strerror or erreur})")
+        return False
+    return True
+
+
+def _sortie_fermee() -> int:
+    """Le lecteur de la sortie standard est parti (`… | head -1`) : c'est une fin
+    silencieuse, pas une erreur. La sortie est redirigée vers le néant, pour que
+    Python ne lève rien en la vidant à la fin."""
+    try:
+        nul = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(nul, sys.stdout.fileno())
+        os.close(nul)
+    except (OSError, ValueError):  # pas de vrai descripteur (une sortie capturée)
+        pass
+    return OK
+
+
+def _vers_la_sortie(texte: str) -> int:
+    try:
+        sys.stdout.write(texte)
+        sys.stdout.flush()
+    except OSError:  # BrokenPipeError, ou EINVAL sous Windows
+        return _sortie_fermee()
+    return OK
 
 
 def _avertissements(source: str, fichier: str, types: bool) -> None:
@@ -69,10 +107,15 @@ def commande_run(args: argparse.Namespace) -> int:
             return ERREUR_USAGE
         _avertissements(source, args.fichier, args.types)
         executer(source, args.backend, types=args.types)
+        sys.stdout.flush()
     except ErreursMultiples as erreurs:
         _erreur(formater(erreurs, source, args.fichier))
         return ERREUR_COMPILATION
     except ErreurExecution as erreur:
+        if isinstance(erreur.__cause__, OSError):
+            # Un programme Upea ne touche pas au système : seule sa sortie peut
+            # échouer, quand son lecteur est parti.
+            return _sortie_fermee()
         sys.stdout.flush()
         if args.trace and erreur.__cause__ is not None:
             cause = erreur.__cause__
@@ -86,6 +129,8 @@ def commande_run(args: argparse.Namespace) -> int:
         sys.stdout.flush()
         _erreur("upea : interrompu")
         return INTERROMPU
+    except OSError:  # la sortie, vidée à la fin
+        return _sortie_fermee()
     return OK
 
 
@@ -117,16 +162,20 @@ def commande_transpile(args: argparse.Namespace) -> int:
         _erreur(f"upea : {erreur.message}")
         return ERREUR_USAGE
     if args.sortie is None:
-        sys.stdout.write(sortie.code)
-        return OK
+        return _vers_la_sortie(sortie.code)
     destination = Path(args.sortie)
-    destination.write_text(sortie.code, encoding="utf-8")
+    if not _ecrire(destination, lambda c: c.write_text(sortie.code, encoding="utf-8")):
+        return ERREUR_COMPILATION
     if externe:
         prelude = destination.with_name(f"{MODULE_PRELUDE}.py")
-        prelude.write_text(module_prelude(), encoding="utf-8")
+        if not _ecrire(
+            prelude, lambda c: c.write_text(module_prelude(), encoding="utf-8")
+        ):
+            return ERREUR_COMPILATION
     if args.sourcemap:
         carte = destination.with_name(destination.name + ".map.json")
-        sortie.sourcemap.nommer(args.fichier).ecrire(carte)
+        if not _ecrire(carte, sortie.sourcemap.nommer(args.fichier).ecrire):
+            return ERREUR_COMPILATION
     return OK
 
 
@@ -152,13 +201,15 @@ def commande_fmt(args: argparse.Namespace) -> int:
     except ErreursMultiples as erreurs:
         _erreur(formater(erreurs, source, args.fichier))
         return ERREUR_COMPILATION
-    if args.ecrire:
-        Path(args.fichier).write_text(resultat, encoding="utf-8")
-        if perdus := commentaires(source):
-            pluriel = "s" if perdus > 1 else ""
-            _erreur(f"upea : {perdus} commentaire{pluriel} perdu{pluriel}")
-    else:
-        sys.stdout.write(resultat)
+    if not args.ecrire:
+        return _vers_la_sortie(resultat)
+    if not _ecrire(
+        Path(args.fichier), lambda c: c.write_text(resultat, encoding="utf-8")
+    ):
+        return ERREUR_COMPILATION
+    if perdus := commentaires(source):
+        pluriel = "s" if perdus > 1 else ""
+        _erreur(f"upea : {perdus} commentaire{pluriel} perdu{pluriel}")
     return OK
 
 

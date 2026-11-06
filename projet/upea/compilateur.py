@@ -5,6 +5,7 @@ Plus rien d'autre n'appelle directement le lexer, le parser ou les générateurs
 
 from __future__ import annotations
 
+import gc
 import re
 import traceback
 from collections.abc import Callable, Iterator, Mapping
@@ -40,6 +41,9 @@ RECURSION_PROFONDE = (
         ",", " "
     )
 )
+
+#: Le message d'un programme qui a rempli la mémoire.
+MEMOIRE_EPUISEE = "mémoire épuisée"
 
 #: Le nom de fichier du code généré, pour reconnaître ses lignes dans un traceback.
 NOM_FICHIER = "<upea>"
@@ -198,8 +202,20 @@ def executer_code(
         objet = code
     else:
         objet = _compiler_le_python(code, sourcemap, nom)
+    ligne_epuisee: int | None = None
+    epuisee = False
     try:
         exec(objet, nouvel_espace() if espace is None else espace)
+    except MemoryError as exc:
+        # Les valeurs du programme remplissent la mémoire, et le traceback les
+        # retient : on note la ligne, puis on sort du bloc pour les libérer avant de
+        # rédiger l'erreur (qui, sinon, n'aurait plus de quoi s'écrire).
+        epuisee = True
+        try:
+            lignes = lignes_du_programme(exc, toutes)
+            ligne_epuisee = lignes[-1] if lignes else None
+        except MemoryError:
+            pass
     except Exception as exc:
         lignes = lignes_du_programme(exc, toutes)
         position = Position(lignes[-1], 0) if lignes else None
@@ -209,6 +225,10 @@ def executer_code(
         if isinstance(exc, RecursionError) and len(lignes) > _PROFONDEUR_MAX // 2:
             message = RECURSION_PROFONDE
         raise ErreurExecution(message, position) from exc
+    if epuisee:
+        gc.collect()
+        position = None if ligne_epuisee is None else Position(ligne_epuisee, 0)
+        raise ErreurExecution(MEMOIRE_EPUISEE, position)
 
 
 def _compiler_le_python(code: str, sourcemap: SourceMap, nom: str) -> CodeType:

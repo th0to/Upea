@@ -510,7 +510,7 @@ python -m upea mcp       (serveur MCP en stdio, pour une IA ; demande le SDK : u
 
 Par défaut, `transpile` recopie le prélude (les arbres, les graphes, les algorithmes : environ 2 500 lignes) en tête du fichier produit, qui se lance seul (`python sortie.py`). Avec `--prelude externe` (qui demande `-o`), le prélude est écrit à côté, dans `upea_prelude.py`, et le fichier produit l'importe : il ne fait plus que quelques dizaines de lignes, mais ne se lance qu'avec son voisin.
 
-Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible), `2` erreur d'utilisation (réservé par `argparse`), `3` erreur d'exécution, `130` exécution interrompue (Ctrl-C). Les erreurs et les avertissements vont sur la sortie d'erreur.
+Codes de retour : `0` succès, `1` erreur de compilation (ou fichier illisible, ou impossible à écrire), `2` erreur d'utilisation (réservé par `argparse`), `3` erreur d'exécution, `130` exécution interrompue (Ctrl-C). Les erreurs et les avertissements vont sur la sortie d'erreur.
 
 ## Limites assumées
 

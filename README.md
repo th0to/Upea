@@ -88,7 +88,8 @@ compilateur pour vérifier, exécuter et corriger ce qu'elle écrit :
   signatures des fonctions prédéfinies, tirées du compilateur
   (`upea://predefinies`) ;
 - **outils** : `verifier` (erreurs et avertissements, avec ligne et colonne),
-  `executer` (dans un sous-processus : 5 s, 512 Mo, 64 Kio de sortie au plus),
+  `executer` (dans un sous-processus : 5 s, 512 Mo, 64 Kio de sortie au plus,
+  et deux fois le délai en temps CPU),
   `transpiler` et `formater` ;
 - **prompts** : `ecrire_programme` et `traduire_depuis_python`.
 
@@ -148,7 +149,7 @@ npx @modelcontextprotocol/inspector --cli <uv> run --directory <dépôt>/projet 
 Depuis la racine du dépôt :
 
 ```bash
-uv run pytest projet          # 1 110 tests (4 de plus avec Graphviz installé)
+uv run pytest projet          # 1 278 tests (4 de plus avec Graphviz installé)
 uv run mypy projet/upea       # typage strict (mypy --strict passe aussi sur les tests)
 uv run ruff check projet      # style
 ```
