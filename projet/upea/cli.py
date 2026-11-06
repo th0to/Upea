@@ -23,6 +23,8 @@ from .prelude import MODULE_PRELUDE, module_prelude
 from .repl import repl
 
 OK, ERREUR_COMPILATION, ERREUR_USAGE, ERREUR_EXECUTION = 0, 1, 2, 3
+#: Le programme a été interrompu par Ctrl-C (128 + SIGINT, la convention des shells).
+INTERROMPU = 130
 
 BANNIERE = (
     "Upea — :aide pour l'aide, Ctrl-D (Ctrl-Z puis Entrée sous Windows) pour quitter."
@@ -80,6 +82,10 @@ def commande_run(args: argparse.Namespace) -> int:
     except ErreurUpea as erreur:
         _erreur(f"upea : {erreur.message}")
         return ERREUR_USAGE
+    except KeyboardInterrupt:
+        sys.stdout.flush()
+        _erreur("upea : interrompu")
+        return INTERROMPU
     return OK
 
 

@@ -22,6 +22,8 @@ from .tokens import TokenKind
 
 INVITE = "upea> "
 SUITE = "....> "
+#: La réponse à un Ctrl-C pendant une évaluation.
+INTERROMPU = "interrompu\n"
 FICHIER = "<repl>"
 AIDE = """\
 Commandes :
@@ -105,6 +107,10 @@ class _Session:
                 )
         except ErreurUpea as erreur:  # d'exécution, ou de compilation (le filet)
             return tampon.getvalue() + formater(erreur, source, FICHIER) + "\n"
+        except KeyboardInterrupt:
+            # Ctrl-C arrête le programme, pas la session : comme une erreur, la
+            # saisie n'est pas retenue, et ce qui a été déclaré avant reste.
+            return tampon.getvalue() + INTERROMPU
         self.cartes[nom] = sourcemap
         self.acceptees = source
         self.executees = len(compilation.programme.instructions)
@@ -155,4 +161,7 @@ def repl(*, types: bool = True) -> Generator[Reponse, str, None]:
             continue
         tampon = []
         if saisie.strip():
-            sortie = session.evaluer(saisie)
+            try:
+                sortie = session.evaluer(saisie)
+            except KeyboardInterrupt:  # pendant la compilation
+                sortie = INTERROMPU
