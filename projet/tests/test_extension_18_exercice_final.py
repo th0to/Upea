@@ -154,15 +154,16 @@ def test_le_rapport_de_la_session_1_est_conserve_tel_quel() -> None:
     assert rapport.rstrip().endswith("de manière économique.")
 
 
-def test_l_index_presente_la_demarche_et_reserve_les_observations() -> None:
+def test_l_index_presente_la_demarche_et_les_observations() -> None:
     index = lire(JOURNAL / "index.md")
     assert "session-1-rapport.md" in index
     for rapport in ("session-2a-rapport.md", "session-2b-rapport.md"):
         assert rapport in index
-    assert "<!-- À RÉDIGER PAR THOMAS -->" in index
-    # Ses observations, il les écrit lui-même : la section suit le marqueur, vide.
-    apres = index.split("<!-- À RÉDIGER PAR THOMAS -->", 1)[1]
-    assert apres.strip() == ""
+    # Les observations sont rédigées par Thomas lui-même : le marqueur a disparu,
+    # et la section n'est plus vide.
+    assert "<!-- À RÉDIGER PAR THOMAS -->" not in index
+    observations = index.split("## Les observations de Thomas", 1)[1]
+    assert observations.strip() != ""
 
 
 def test_le_texte_de_la_session_2_ne_donne_pas_la_specification() -> None:
@@ -182,11 +183,12 @@ def test_les_sessions_2a_et_2b_ont_leur_rapport() -> None:
     assert not (JOURNAL / "session-2-rapport.md").exists()
     assert (JOURNAL / "session-2a-rapport.md").is_file()
     rapport = lire(JOURNAL / "session-2b-rapport.md")
-    # Collé tel quel : le texte donné à l'IA, puis son rapport.
-    assert "Rapport d’utilisation du serveur MCP Upea" in rapport
-    assert "Sortie réellement produite (statut succes, code 0)" in rapport
+    # Le rapport tel que l'IA l'a rendu en Markdown, sous un en-tête de contexte.
+    assert "# Rapport d'utilisation du serveur MCP Upea" in rapport
+    assert "## Sortie réellement produite (statut `succes`, code 0)" in rapport
     assert "taquin melange : 038145276" in rapport
     assert "8 outils" in rapport
+    assert (JOURNAL / "session-2b-taquin.upea").is_file()
 
 
 def test_le_texte_de_la_session_2_contient_le_programme_du_taquin() -> None:

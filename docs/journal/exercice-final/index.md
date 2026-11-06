@@ -522,8 +522,13 @@ du rapport de la session 1.
 
 ## Les observations de Thomas
 
-Ce qu'on regarde, d'après la consigne du cours : l'IA lit-elle l'aide avant d'écrire ?
-quelles erreurs fait-elle, et les messages de `verifier` lui suffisent-ils pour corriger ?
-combien d'allers-retours avant un programme correct ? ce qui a été amélioré ensuite.
+l'IA lit-elle l'aide avant d'écrire ?
+Lors de la session 1 et 2a, elle a lu les aide mais la documentation de ces dernieres etait insuffisante. elle avait acces au mot cle du language mias ne saveait pas a quoi ils correspondait. Pour un ecrire un programme elle a alors du faire des tests empiriques pour decouvrir le language. Lors de la session 2b, elle a lu l'aide et a pu ecrire un programme correct car tout etait bien documenté.
 
-<!-- À RÉDIGER PAR THOMAS -->
+quelles erreurs fait-elle, et les messages de `verifier` lui suffisent-ils pour corriger ?
+Oui, les messages de `verifier` sont suffisants pour corriger les erreurs. L'IA a fait des erreurs de syntaxe et de noms, mais les messages d'erreur lui ont permis de les corriger. La preuve en est qu'elle a reussi a ecrire un programme fonctionnel en Upea lors de la session 1.
+
+combien d'allers-retours avant un programme correct ?
+1 seul aller-retour. L'IA a ecrit un programme correct en Upea lors de la session 2b, et l'a fait verifier par le serveur. Le serveur a accepte le programme du premier coup, et l'a execute avec succes.
+Cependant je reconnais que j'aurai certainement du lui donner une tache plus simple car meme si le resultat est correct au niveau de la syntaxe, les outcomes du programme sont questionnables. Il aurait été plus judicieux de lui demander de traduire un programme plus simple, pour qu'elle puisse se concentrer sur la syntaxe et la structure du langage, plutôt que sur la logique du programme.
+

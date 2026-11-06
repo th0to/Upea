@@ -1,0 +1,187 @@
+// taquin (traduction de taquin_3.py)
+tuu graine = 42;
+tuu visiter = [];
+
+ohipa alea(n: numera) -> numera {
+    graine = (graine * 1103515245 + 12345) % 2147483648;
+    hoi graine % n;
+}
+
+ohipa transform(taq) -> parau {
+    tuu chain = "";
+    tataitahi a roto 0..3 {
+        tataitahi b roto 0..3 {
+            chain = chain + parau(taq[a][b]);
+        }
+    }
+    hoi chain;
+}
+
+ohipa transform_tolist(chain: parau) {
+    tuu l = [[], [], []];
+    tataitahi i roto 0..9 {
+        ahani i < 3 {
+            amui(l[0], chain[i]);
+        } taae ahani i < 6 {
+            amui(l[1], chain[i]);
+        } taae {
+            amui(l[2], chain[i]);
+        }
+    }
+    hoi l;
+}
+
+ohipa trouve_zero(taq: parau, val: parau) -> numera {
+    tuu s = 0;
+    tataitahi i roto 0..roa(taq) {
+        ahani taq[i] == val {
+            s = i;
+        }
+    }
+    hoi s;
+}
+
+ohipa melange_grad(chain: parau) -> numera {
+    tuu cpt = 0;
+    tataitahi i roto 1..9 {
+        tuu pos_i = trouve_zero(chain, parau(i));
+        tataitahi j roto i..9 {
+            tuu pos_j = trouve_zero(chain, parau(j));
+            ahani pos_j < pos_i {
+                cpt = cpt + 1;
+            }
+        }
+    }
+    hoi cpt;
+}
+
+ohipa melange(l) {
+    tuu cur = l;
+    tuu ok = hape;
+    tamau eiaha ok {
+        tataitahi i roto 0..3 {
+            tuu a = alea(3);
+            tuu b = alea(3);
+            tuu c = alea(3);
+            tuu m = cur[a][c];
+            cur[a][c] = cur[c][b];
+            cur[c][b] = m;
+        }
+        ahani melange_grad(transform(cur)) % 2 == 0 {
+            ok = tia;
+        } taae {
+            cur = transform_tolist(transform(cur));
+        }
+    }
+    hoi transform_tolist(transform(cur));
+}
+
+ohipa change(taq: parau, sens: parau) -> parau {
+    tuu s = trouve_zero(taq, "0");
+    tuu l = [];
+    tataitahi c roto taq {
+        amui(l, numera(c));
+    }
+    tuu g = 0;
+    ahani sens == "h" {
+        g = l[s - 3]; l[s - 3] = l[s]; l[s] = g;
+    } taae ahani sens == "b" {
+        g = l[s + 3]; l[s + 3] = l[s]; l[s] = g;
+    } taae ahani sens == "d" {
+        g = l[s + 1]; l[s + 1] = l[s]; l[s] = g;
+    } taae ahani sens == "g" {
+        g = l[s - 1]; l[s - 1] = l[s]; l[s] = g;
+    }
+    tuu out = "";
+    tataitahi x roto l {
+        out = out + parau(x);
+    }
+    hoi out;
+}
+
+ohipa graph(suit, maximum: numera, chemin: numera) {
+    ahani suit.hotu == "012345678" anei chemin == maximum {
+        hoi chemin;
+    }
+    tuu p = trouve_zero(suit.hotu, "0");
+    ahani eiaha (0 <= p ma p <= 2) {
+        amui(visiter, suit.hotu);
+        amui(suit.amaa, tumu(change(suit.hotu, "h")));
+        tataitahi i roto suit.amaa {
+            ahani eiaha (i.hotu roto visiter) {
+                graph(i, maximum, chemin + 1);
+            }
+        }
+    }
+    ahani eiaha (6 <= p ma p <= 8) {
+        amui(visiter, suit.hotu);
+        amui(suit.amaa, tumu(change(suit.hotu, "b")));
+        tataitahi i roto suit.amaa {
+            ahani eiaha (i.hotu roto visiter) {
+                graph(i, maximum, chemin + 1);
+            }
+        }
+    }
+    ahani eiaha (p == 2 anei p == 5 anei p == 8) {
+        amui(visiter, suit.hotu);
+        amui(suit.amaa, tumu(change(suit.hotu, "d")));
+        tataitahi i roto suit.amaa {
+            ahani eiaha (i.hotu roto visiter) {
+                graph(i, maximum, chemin + 1);
+            }
+        }
+    }
+    ahani eiaha (p == 0 anei p == 3 anei p == 6) {
+        amui(visiter, suit.hotu);
+        amui(suit.amaa, tumu(change(suit.hotu, "g")));
+        tataitahi i roto suit.amaa {
+            ahani eiaha (i.hotu roto visiter) {
+                graph(i, maximum, chemin + 1);
+            }
+        }
+    }
+}
+
+tuu t = [[0, 1, 2], [3, 4, 5], [6, 7, 8]];
+tuu pl = 0;
+tuu pc = 0;
+
+ohipa echange(l2: numera, c2: numera) {
+    tuu m = t[pl][pc];
+    t[pl][pc] = t[l2][c2];
+    t[l2][c2] = m;
+    pl = l2;
+    pc = c2;
+}
+
+ohipa haut() { ahani pl != 0 { echange(pl - 1, pc); } }
+ohipa bas() { ahani pl != 2 { echange(pl + 1, pc); } }
+ohipa droite() { ahani pc != 2 { echange(pl, pc + 1); } }
+ohipa gauche() { ahani pc != 0 { echange(pl, pc - 1); } }
+
+ohipa affiche_taquin() {
+    tataitahi ligne roto t {
+        faaite ligne;
+    }
+}
+
+melange(t);
+tuu g = tumu(transform(t));
+faaite "taquin melange :", transform(t);
+faaite "graph :", graph(g, 4, 0);
+faaite "noeuds de la racine :", roa(g.amaa), "hauteur :", teitei(g);
+
+faaite "bienvenue sur votre taquin";
+tuu coups = ["h", "b", "d", "g", "x", "ab", "h"];
+tuu fini = hape;
+tataitahi coup roto coups {
+    ahani eiaha fini {
+        affiche_taquin();
+        ahani coup == "h" { haut(); }
+        taae ahani coup == "b" { bas(); }
+        taae ahani coup == "d" { droite(); }
+        taae ahani coup == "g" { gauche(); }
+        taae ahani coup == "ab" { faaite "Merci d'avoir joue"; fini = tia; }
+        taae { faaite "mauvaise commande :", coup; }
+    }
+}
