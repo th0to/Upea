@@ -724,6 +724,8 @@ async def test_de_bout_en_bout_avec_le_client_du_sdk() -> None:
             "formater",
             "transpiler",
             "executer",
+            "aide",
+            "exemples",
         }
         resultat = await client.call_tool("executer", {"source": "faaite 6 * 7;"})
         assert resultat.structured_content is not None

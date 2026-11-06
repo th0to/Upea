@@ -73,6 +73,34 @@ AvecPrelude = Annotated[
         )
     ),
 ]
+Sujet = Annotated[
+    Literal["apercu", "mots_cles", "predefinies", "depuis_python", "specification"],
+    Field(
+        description=(
+            "Ce dont on veut l'aide : apercu (à lire en premier), mots_cles, "
+            "predefinies, depuis_python ou specification."
+        )
+    ),
+]
+Section = Annotated[
+    str | None,
+    Field(
+        description=(
+            "Pour le sujet specification seulement : le nom d'une section (par "
+            'exemple "grammaire" ou "graphes"), ou "tout" pour la spécification '
+            "entière. Sans section : la liste des sections."
+        )
+    ),
+]
+NomExemple = Annotated[
+    str | None,
+    Field(
+        description=(
+            "Le nom d'un exemple (par exemple 05_motu). Sans nom : la liste des "
+            "exemples."
+        )
+    ),
+]
 #: Le délai le plus court qu'on puisse demander à `executer`. Le démarrage de Python
 #: en prend déjà une demi-seconde environ : un délai si court arrête presque tout.
 DELAI_MINIMAL = 0.1
@@ -138,6 +166,7 @@ def construire_serveur(
         instructions=INSTRUCTIONS,
         lifespan=_stdout_vers_stderr if proteger_stdout else None,
     )
+    _outils_d_aide(serveur)
     _outils_sans_execution(serveur)
     _outil_executer(serveur, delai)
     _ressources(serveur)
@@ -161,18 +190,74 @@ def _limiter(source: str) -> None:
 
 
 def _outil[F: Callable[..., object]](
-    serveur: MCPServer[None], titre: str, annotations: ToolAnnotations = SANS_EFFET
+    serveur: MCPServer[None],
+    titre: str,
+    annotations: ToolAnnotations = SANS_EFFET,
+    nom: str | None = None,
 ) -> Callable[[F], F]:
-    """`serveur.tool`, avec la docstring sans son indentation pour description."""
+    """`serveur.tool`, avec la docstring sans son indentation pour description ;
+    `nom` seulement quand ce n'est pas celui de la fonction."""
 
     def enregistrer(fonction: F) -> F:
         description = inspect.cleandoc(fonction.__doc__ or "")
         decorer = serveur.tool(
-            title=titre, description=description, annotations=annotations
+            name=nom, title=titre, description=description, annotations=annotations
         )
         return decorer(fonction)
 
     return enregistrer
+
+
+def _outils_d_aide(serveur: MCPServer[None]) -> None:
+    """`aide` et `exemples` : seuls les outils sont appelés par le modèle de lui-même
+    (une ressource est choisie par l'application, un prompt par l'utilisateur) ; ce
+    qu'une IA doit pouvoir consulter seule est donc un outil. Les textes viennent du
+    module `aide`, qui nourrit aussi les ressources."""
+
+    @_outil(serveur, "Apprendre le langage Upea", nom="aide")
+    def aide_sur_upea(sujet: Sujet, section: Section = None) -> str:
+        """Donne l'aide sur le langage Upea, pour écrire un programme correct sans
+        deviner sa syntaxe.
+
+        Quand s'en servir : d'abord avec sujet="apercu", puis, au besoin, les autres
+        sujets.
+
+        Sujets :
+        - apercu : l'aide-mémoire d'une page (structure d'un programme, déclarations,
+          conditions, boucles, fonctions, listes, arbres, graphes, affichage, un
+          exemple complet, ce qu'Upea n'a pas, démarche verifier puis executer) ;
+        - mots_cles : les mots réservés, leur sens et leur équivalent Python, et les
+          mots d'autres langages (if, while, print, True…) qu'Upea ne connaît pas ;
+        - predefinies : la signature de chaque fonction prédéfinie (roa, amui, tumu,
+          dijkstra…) ;
+        - depuis_python : comment traduire un programme Python (équivalences) ;
+        - specification : sans `section`, la liste des sections ; avec `section` (par
+          exemple "grammaire" ou "graphes"), son texte ; "tout" rend toute la
+          spécification (environ 44 Kio).
+
+        Résultat : du texte Markdown. Un nom de section inconnu rend la liste des
+        sections, pas une erreur.
+        """
+        return aide.texte_sujet(sujet, section)
+
+    @_outil(serveur, "Lire des exemples de programmes Upea")
+    def exemples(nom: NomExemple = None) -> str:
+        """Donne des programmes Upea d'exemple, avec leur sortie exacte.
+
+        Quand s'en servir : pour voir comment s'écrit une construction (fonctions,
+        listes, arbres, graphes, algorithmes) avant de l'écrire. Sans argument, la
+        liste des exemples avec ce que chacun montre ; avec un `nom` (par exemple
+        05_motu), son source et la sortie qu'il affiche.
+
+        Résultat : du texte Markdown. Un nom inconnu rend la liste des noms, pas une
+        erreur.
+        """
+        if nom is None:
+            return aide.liste_exemples()
+        try:
+            return aide.exemple(nom)
+        except aide.AideInconnue as inconnu:
+            return f"{inconnu}\n\n{aide.liste_exemples()}"
 
 
 def _outils_sans_execution(serveur: MCPServer[None]) -> None:

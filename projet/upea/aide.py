@@ -799,3 +799,86 @@ def ajouter_conseils(erreurs: ErreursMultiples, source: str) -> ErreursMultiples
             nouvelles.append(type(erreur)(message, position))
             change = True
     return ErreursMultiples(nouvelles) if change else erreurs
+
+
+# --- Depuis Python --------------------------------------------------------------------
+
+#: Ce qu'on écrit en Python, et ce qu'on écrit en Upea à la place. Une cellule Upea qui
+#: n'a pas de `…` est un programme : un test l'analyse.
+EQUIVALENCES: tuple[tuple[str, str], ...] = (
+    ("x = 1", "tuu x = 1;"),
+    ("MAX = 10", "mau MAX = 10;"),
+    ("x += 1", "x = x + 1;"),
+    ("# commentaire", "// commentaire"),
+    ("def f(a, b):", "ohipa f(a, b) { … }"),
+    ("return v", "hoi v;"),
+    ("if c: … elif d: … else: …", "ahani c { … } taae ahani d { … } taae { … }"),
+    ("while c:", "tamau c { … }"),
+    ("for i in range(a, b):", "tataitahi i roto a..b { … }"),
+    ("for i in range(a, b + 1):", "tataitahi i roto a..=b { … }"),
+    ("for x in l:", "tataitahi x roto l { … }"),
+    ("break", "faaea;"),
+    ("continue", "haere;"),
+    ("print(a, b)", "faaite a, b;"),
+    ("True", "tia"),
+    ("False", "hape"),
+    ("None", "aore"),
+    ("a and b", "a ma b"),
+    ("a or b", "a anei b"),
+    ("not a", "eiaha a"),
+    ("x in l", "x roto l"),
+    ("a < b < c", "a < b ma b < c"),
+    ("len(l)", "roa(l)"),
+    ("l.append(x)", "amui(l, x);"),
+    ("l.remove(x)", "tatara(l, x);"),
+    ("min(l)", "iti(l)"),
+    ("max(l)", "rahi(l)"),
+    ("int(x)", "numera(x)"),
+    ("float(x)", "tuhaa(x)"),
+    ("str(x)", "parau(x)"),
+    ('"n = " + str(n)', '"n = " + parau(n)'),
+    ("l[-1]", "l[-1]"),
+    ("heapq.heappush(h, x)", "amui(h, x);"),
+    ("heapq.heappop(h)", "iriti(h)"),
+)
+
+
+def texte_depuis_python() -> str:
+    """Le sujet `depuis_python` : le tableau des équivalences entre Python et Upea."""
+    lignes = "\n".join(f"| `{python}` | `{upea}` |" for python, upea in EQUIVALENCES)
+    return (
+        "# De Python à Upea\n\n"
+        "Upea est un langage à accolades : les instructions finissent par `;`, les "
+        "blocs sont entre `{ }`, et l'indentation ne compte pas. Toute variable se "
+        "déclare avant son premier usage, une seule fois, avec `tuu` (ou `mau` pour "
+        "une constante) : écrire `compteur = 0;` sans l'avoir déclarée est une "
+        "erreur.\n\n"
+        "## Les équivalences\n\n"
+        "| Python | Upea |\n|---|---|\n"
+        f"{lignes}\n\n"
+        "Il n'y a pas d'opérateur de puissance (`x ** 2` : écrivez `x * x`), pas "
+        "d'expression conditionnelle (`a if c else b` : un `ahani`), pas de `//`.\n"
+    )
+
+
+# --- Les sujets de l'outil `aide` -----------------------------------------------------
+
+
+def texte_sujet(sujet: str, section: str | None = None) -> str:
+    """Le texte du sujet demandé à l'outil `aide`. `section` ne sert qu'à la
+    spécification. Lève `AideInconnue` pour un sujet inconnu."""
+    match sujet:
+        case "apercu":
+            return APERCU
+        case "mots_cles":
+            return f"{texte_mots_cles()}\n{texte_faux_amis()}"
+        case "predefinies":
+            return texte_predefinies()
+        case "depuis_python":
+            return texte_depuis_python()
+        case "specification":
+            return texte_specification(section)
+        case _:
+            raise AideInconnue(
+                f"pas de sujet « {sujet} » ; les sujets : {', '.join(SUJETS)}"
+            )
