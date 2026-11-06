@@ -1,5 +1,7 @@
 # Upea
 
+[![tests](https://github.com/th0to/upea/actions/workflows/tests.yml/badge.svg)](https://github.com/th0to/upea/actions/workflows/tests.yml)
+
 Upea est un petit langage impératif aux mots-clés tahitiens, où les **arbres** et les
 **graphes** sont des valeurs de première classe. Son compilateur, écrit à la main en
 Python (lexer, parser, analyse sémantique et typage, deux générateurs), le transpile
@@ -146,9 +148,10 @@ demandent Graphviz) ; aucune erreur de mypy (83 fichiers, et de même avec
   rien d'autre que le JSON-RPC n'y passe sur la sortie standard.
 - Les programmes de la documentation sont exécutés par les tests, qui comparent leur
   sortie à celle qui est écrite, et chaque lien interne est vérifié.
-- CI configurée (GitHub Actions, Windows et Linux) :
-  [`tests.yml`](.github/workflows/tests.yml) prévoit pytest, mypy, `ruff check` et
-  `ruff format --check` à chaque push et pull request.
+- CI (GitHub Actions, Windows et Linux) : à chaque push et pull request,
+  [`tests.yml`](.github/workflows/tests.yml) lance pytest, mypy, `ruff check` et
+  `ruff format --check`. Le badge en tête de ce fichier donne le résultat du dernier
+  push.
 
 ## In English
 
