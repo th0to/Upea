@@ -23,7 +23,7 @@ from mcp.server.mcpserver.exceptions import ResourceNotFoundError, ToolError
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from . import aide, atelier, bac_a_sable
+from . import __version__, aide, atelier, bac_a_sable
 
 NOM = "upea"
 
@@ -171,6 +171,7 @@ def construire_serveur(
     serveur = MCPServer(
         NOM,
         title="Upea",
+        version=__version__,
         description="Le langage Upea : sa spécification, et son compilateur.",
         instructions=INSTRUCTIONS,
         lifespan=_stdout_vers_stderr if proteger_stdout else None,

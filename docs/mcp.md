@@ -249,6 +249,13 @@ npx @modelcontextprotocol/inspector --cli <uv> run --directory <dépôt>/projet 
   configuration dans un terminal. Elle doit rester silencieuse, en attente ; une erreur
   affichée est celle que voit l'hôte. Dans Claude Code, `/mcp` montre l'état des
   serveurs.
+- **Après une mise à jour, le client voit encore l'ancien serveur** : un serveur MCP
+  garde le code chargé à son démarrage, et le client ne le relance pas de lui-même.
+  Quittez complètement le client (Claude Desktop : *Quitter* depuis l'icône de la barre
+  des tâches, pas seulement fermer la fenêtre), relancez-le, puis vérifiez que `aide` et
+  `exemples` sont listés parmi les outils, et que `aide("apercu")` annonce la bonne
+  version sur sa première ligne (« Upea 1.0.0 »). Sinon, le client lance encore un
+  ancien serveur : relisez la commande de la configuration.
 - **Le journal de Claude Desktop** : la sortie d'erreur du serveur est dans
   `%APPDATA%\Claude\logs\mcp-server-upea.log` (`~/Library/Logs/Claude/` sous macOS).
 - **« le serveur MCP demande le SDK Python `mcp` »** : l'environnement a été installé

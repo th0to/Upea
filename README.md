@@ -127,8 +127,8 @@ uv run ruff check projet             # style
 uv run ruff format --check projet    # mise en forme
 ```
 
-Mesuré le 6 novembre 2026, sous Windows : 1 594 tests réussis et 4 ignorés (ils
-demandent Graphviz) ; aucune erreur de mypy (82 fichiers, et de même avec
+Mesuré le 6 novembre 2026, sous Windows : 1 613 tests réussis et 4 ignorés (ils
+demandent Graphviz) ; aucune erreur de mypy (83 fichiers, et de même avec
 `--platform linux` et `--platform darwin`), de `ruff check` ni de `ruff format`.
 
 - Chaque étape du compilateur a ses tests : lexer, parser de Pratt, analyse

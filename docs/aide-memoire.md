@@ -1,6 +1,6 @@
 <!-- Fichier généré par `upea/aide.py` (`uv run python -m upea.aide --ecrire`) : ne pas le modifier à la main. -->
 
-# Upea : l'aide-mémoire (à lire en premier)
+# Upea 1.0.0 : l'aide-mémoire (à lire en premier)
 
 Upea est un langage impératif à accolades, aux mots-clés tahitiens, transpilé en Python 3.12. Les arbres (`tumu`) et les graphes (`upea`) y sont des valeurs de première classe. **Ne devine pas la syntaxe** : `si`, `if`, `while`, `def`, `print`, `true`, `None`, `+=` n'existent pas (voir `aide("mots_cles")`).
 
@@ -24,7 +24,7 @@ Upea est un langage impératif à accolades, aux mots-clés tahitiens, transpil�
 - Fonction, au niveau global et avant son premier appel : `ohipa nom(a, b: numera) -> numera { hoi a + b; }`. Pas de fonction imbriquée, ni comme valeur.
 - Affichage : `faaite a, b;` (séparés par une espace, puis un saut de ligne). `faaite arbre;` ou `faaite graphe;` dessine la structure.
 - Listes : `l[0]`, `l[-1]`, `roa(l)` (longueur), `amui(l, x)` (ajouter), `tatara(l, x)` (retirer). Un texte aussi : `t[0]`, `roa(t)`.
-- Arbres : `tumu(1, tumu(2), tumu(3))`, champs `a.hotu` (valeur) et `a.amaa` (liste des enfants), `prefixe(a)`, `teitei(a)` ; arbres de recherche et tas : `aifaito [5, 3, 8]`, `ahu [3, 1]`.
+- Arbres : `tumu(1, tumu(2), tumu(3))`, champs `a.hotu` (valeur) et `a.amaa` (liste des enfants), `prefixe(a)`, `teitei(a)` ; ajouter un enfant : `amui(a.amaa, tumu(4))` ; arbres de recherche et tas : `aifaito [5, 3, 8]`, `ahu [3, 1]`.
 - Graphes : `upea { "A" <-> "B" : 17, "B" -> "C" }` (`->` un sens, `<->` deux, `: p` le poids) ; `tataitahi n roto g mai "A" aano { … }` parcourt en largeur depuis A (`hohonu` : profondeur) ; `ea(g, a, b)` plus court chemin, `motu(g)`, `pihai(g, a)`, `taati(g, a, b, p)`. Tout le catalogue : `aide("predefinies")`.
 
 ## Un exemple complet
@@ -78,6 +78,8 @@ Huahine
 
 - Ni dictionnaires, ni ensembles littéraux, ni tuples : une liste de paires, un graphe, ou un arbre ordonné (`aifaito`, un ensemble) les remplacent.
 - Ni clavier (`input`), ni fichiers, ni réseau, ni aléatoire : écris les entrées dans le programme, et un petit générateur pseudo-aléatoire si besoin.
+- Ni classes, ni méthodes : un état global et des fonctions, ou une liste par objet (`aide("depuis_python")` en donne la recette).
+- Pas de `//` : c'est un commentaire. La division entière s'écrit `numera(a / b)`, qui tronque vers zéro ; le `//` de Python arrondit vers le bas, ce qui diffère pour les négatifs (la formule exacte est dans `depuis_python`).
 - Ni fonctions imbriquées, ni fonctions comme valeurs, ni récursion croisée, ni `+=`, ni comparaisons chaînées, ni `for … in` ni `range` ni `len` (voir `tataitahi` et `roa`).
 
 Pour le détail : `aide("depuis_python")` (la traduction pas à pas), `aide("specification")`, `exemples()`.

@@ -13,6 +13,7 @@ Pour qui connaît Python : ce qui change, le tableau des équivalences, et comme
 - Les comparaisons ne s'enchaînent pas : `a < b ma b < c` au lieu de `a < b < c`.
 - `ma`, `anei`, `eiaha` pour `and`, `or`, `not` ; `tia`, `hape`, `aore` pour `True`, `False`, `None`.
 - `/` rend toujours un décimal ; il n'y a ni `//` ni `**`. Pour coller un nombre à un texte : `"n = " + parau(n)`.
+- **Un programme est arrêté au bout de 5 s** (démarrage de Python compris) : une exploration exponentielle (l'espace des états d'un taquin, par exemple) le dépasse vite ; réduisez la profondeur ou la taille du problème.
 - **Pas de clavier, de fichiers, de réseau ni d'aléatoire** : un programme ne fait que calculer et afficher.
 - Pour un arbre ou un graphe, préférez les structures et les algorithmes d'Upea (`upea { "A" -> "B" : 3 }`, `tumu`, `aifaito`, `dijkstra`, `bfs`…) à une réimplémentation avec des listes.
 
@@ -43,6 +44,7 @@ Pour qui connaît Python : ce qui change, le tableau des équivalences, et comme
 | `not a` | `eiaha a` |
 | `x in l` | `x roto l` |
 | `a < b < c` | `a < b ma b < c` |
+| `a // b` | `div_ent(a, b)` |
 | `len(l)` | `roa(l)` |
 | `l.append(x)` | `amui(l, x);` |
 | `l.remove(x)` | `tatara(l, x);` |
@@ -56,7 +58,7 @@ Pour qui connaît Python : ce qui change, le tableau des équivalences, et comme
 | `heapq.heappush(h, x)` | `amui(h, x);` |
 | `heapq.heappop(h)` | `iriti(h)` |
 
-Il n'y a pas d'opérateur de puissance (`x ** 2` : écrivez `x * x`), pas d'expression conditionnelle (`a if c else b` : un `ahani`), pas de `//`.
+Il n'y a pas d'opérateur de puissance (`x ** 2` : écrivez `x * x`), pas d'expression conditionnelle (`a if c else b` : un `ahani`) ; `//` est un commentaire (voir la division entière plus bas).
 
 ## Remplacer ce qu'Upea n'a pas
 
@@ -194,6 +196,94 @@ faaite "min", r[0], "max", r[1];
 
 ```sortie
 min 2 max 9
+```
+
+### Une classe : un état et des fonctions
+
+Il n'y a ni classes ni méthodes. Pour un seul objet, l'état devient des variables globales et les méthodes des fonctions, qui lisent et modifient les globales déclarées avant elles. Python :
+
+```python
+class Compteur:
+    def __init__(self):
+        self.n = 0
+
+    def incremente(self):
+        self.n += 1
+        return self.n
+
+c = Compteur()
+c.incremente()
+print(c.incremente())
+```
+
+Upea :
+
+```upea
+tuu n = 0;
+
+ohipa incremente() -> numera {
+    n = n + 1;
+    hoi n;
+}
+
+incremente();
+faaite incremente();
+```
+
+```sortie
+2
+```
+
+Pour plusieurs objets, une liste par objet (ses champs sont ses cases), que l'on passe aux fonctions :
+
+```upea
+ohipa nouveau_compteur() {
+    hoi [0];
+}
+
+ohipa incremente(c) {
+    c[0] = c[0] + 1;
+    hoi c[0];
+}
+
+tuu a = nouveau_compteur();
+tuu b = nouveau_compteur();
+incremente(a);
+incremente(a);
+incremente(b);
+faaite a[0], b[0];
+```
+
+```sortie
+2 1
+```
+
+### La division entière : `//`
+
+`//` n'existe pas : c'est le début d'un commentaire. `/` rend toujours un décimal, et `numera(a / b)` tronque vers zéro, alors que le `//` de Python arrondit vers le bas : les deux diffèrent dès que le résultat est négatif (`-7 // 2` vaut -4, `numera(-7 / 2)` vaut -3). Le reste `%` est le même qu'en Python. La formule exacte pour les deux signes retranche 1 quand la division ne tombe pas juste et que les signes diffèrent. Python :
+
+```python
+print(7 // 2, -7 // 2, 7 // -2, -7 // -2)
+```
+
+Upea :
+
+```upea
+ohipa div_ent(a: numera, b: numera) -> numera {
+    tuu q = numera(a / b);
+    ahani a % b != 0 ma (a < 0) != (b < 0) {
+        q = q - 1;
+    }
+    hoi q;
+}
+
+faaite div_ent(7, 2), div_ent(-7, 2), div_ent(7, -2), div_ent(-7, -2);
+faaite numera(-7 / 2), div_ent(6, -3);
+```
+
+```sortie
+3 -4 -4 3
+-3 -2
 ```
 
 ### Le hasard : un générateur pseudo-aléatoire

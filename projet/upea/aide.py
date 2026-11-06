@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
+from . import __version__
 from .erreurs import (
     ErreurLexicale,
     ErreurSemantique,
@@ -311,8 +312,8 @@ def texte_specification(section: str | None = None) -> str:
 
 #: Le sujet `apercu` : une page, à lire en premier. Son programme est exécuté par les
 #: tests, qui vérifient aussi sa sortie ; sa taille est bornée à 8 Kio.
-APERCU = """\
-# Upea : l'aide-mémoire (à lire en premier)
+_APERCU = """\
+# Upea @VERSION@ : l'aide-mémoire (à lire en premier)
 
 Upea est un langage impératif à accolades, aux mots-clés tahitiens, transpilé en \
 Python 3.12. Les arbres (`tumu`) et les graphes (`upea`) y sont des valeurs de \
@@ -355,8 +356,9 @@ comme valeur.
 - Listes : `l[0]`, `l[-1]`, `roa(l)` (longueur), `amui(l, x)` (ajouter), \
 `tatara(l, x)` (retirer). Un texte aussi : `t[0]`, `roa(t)`.
 - Arbres : `tumu(1, tumu(2), tumu(3))`, champs `a.hotu` (valeur) et `a.amaa` (liste \
-des enfants), `prefixe(a)`, `teitei(a)` ; arbres de recherche et tas : \
-`aifaito [5, 3, 8]`, `ahu [3, 1]`.
+des enfants), `prefixe(a)`, `teitei(a)` ; ajouter un enfant : \
+`amui(a.amaa, tumu(4))` ; arbres de recherche et tas : `aifaito [5, 3, 8]`, \
+`ahu [3, 1]`.
 - Graphes : `upea { "A" <-> "B" : 17, "B" -> "C" }` (`->` un sens, `<->` deux, `: p` \
 le poids) ; `tataitahi n roto g mai "A" aano { … }` parcourt en largeur depuis A \
 (`hohonu` : profondeur) ; `ea(g, a, b)` plus court chemin, `motu(g)`, `pihai(g, a)`, \
@@ -415,6 +417,11 @@ Huahine
 graphe, ou un arbre ordonné (`aifaito`, un ensemble) les remplacent.
 - Ni clavier (`input`), ni fichiers, ni réseau, ni aléatoire : écris les entrées dans \
 le programme, et un petit générateur pseudo-aléatoire si besoin.
+- Ni classes, ni méthodes : un état global et des fonctions, ou une liste par objet \
+(`aide("depuis_python")` en donne la recette).
+- Pas de `//` : c'est un commentaire. La division entière s'écrit `numera(a / b)`, qui \
+tronque vers zéro ; le `//` de Python arrondit vers le bas, ce qui diffère pour les \
+négatifs (la formule exacte est dans `depuis_python`).
 - Ni fonctions imbriquées, ni fonctions comme valeurs, ni récursion croisée, ni `+=`, \
 ni comparaisons chaînées, ni `for … in` ni `range` ni `len` (voir `tataitahi` et \
 `roa`).
@@ -422,6 +429,8 @@ ni comparaisons chaînées, ni `for … in` ni `range` ni `len` (voir `tataitahi
 Pour le détail : `aide("depuis_python")` (la traduction pas à pas), \
 `aide("specification")`, `exemples()`.
 """
+
+APERCU = _APERCU.replace("@VERSION@", __version__)
 
 
 # --- Les faux amis --------------------------------------------------------------------
@@ -832,6 +841,7 @@ EQUIVALENCES: tuple[tuple[str, str], ...] = (
     ("not a", "eiaha a"),
     ("x in l", "x roto l"),
     ("a < b < c", "a < b ma b < c"),
+    ("a // b", "div_ent(a, b)"),
     ("len(l)", "roa(l)"),
     ("l.append(x)", "amui(l, x);"),
     ("l.remove(x)", "tatara(l, x);"),
@@ -866,6 +876,9 @@ peut lire et modifier les variables globales déclarées avant elle.
 `False`, `None`.
 - `/` rend toujours un décimal ; il n'y a ni `//` ni `**`. Pour coller un nombre à \
 un texte : `"n = " + parau(n)`.
+- **Un programme est arrêté au bout de 5 s** (démarrage de Python compris) : une \
+exploration exponentielle (l'espace des états d'un taquin, par exemple) le dépasse \
+vite ; réduisez la profondeur ou la taille du problème.
 - **Pas de clavier, de fichiers, de réseau ni d'aléatoire** : un programme ne fait \
 que calculer et afficher.
 - Pour un arbre ou un graphe, préférez les structures et les algorithmes d'Upea \
@@ -1019,6 +1032,102 @@ faaite "min", r[0], "max", r[1];
 min 2 max 9
 ```
 
+### Une classe : un état et des fonctions
+
+Il n'y a ni classes ni méthodes. Pour un seul objet, l'état devient des variables \
+globales et les méthodes des fonctions, qui lisent et modifient les globales déclarées \
+avant elles. Python :
+
+```python
+class Compteur:
+    def __init__(self):
+        self.n = 0
+
+    def incremente(self):
+        self.n += 1
+        return self.n
+
+c = Compteur()
+c.incremente()
+print(c.incremente())
+```
+
+Upea :
+
+```upea
+tuu n = 0;
+
+ohipa incremente() -> numera {
+    n = n + 1;
+    hoi n;
+}
+
+incremente();
+faaite incremente();
+```
+
+```sortie
+2
+```
+
+Pour plusieurs objets, une liste par objet (ses champs sont ses cases), que l'on passe \
+aux fonctions :
+
+```upea
+ohipa nouveau_compteur() {
+    hoi [0];
+}
+
+ohipa incremente(c) {
+    c[0] = c[0] + 1;
+    hoi c[0];
+}
+
+tuu a = nouveau_compteur();
+tuu b = nouveau_compteur();
+incremente(a);
+incremente(a);
+incremente(b);
+faaite a[0], b[0];
+```
+
+```sortie
+2 1
+```
+
+### La division entière : `//`
+
+`//` n'existe pas : c'est le début d'un commentaire. `/` rend toujours un décimal, et \
+`numera(a / b)` tronque vers zéro, alors que le `//` de Python arrondit vers le bas : \
+les deux diffèrent dès que le résultat est négatif (`-7 // 2` vaut -4, \
+`numera(-7 / 2)` vaut -3). Le reste `%` est le même qu'en Python. La formule exacte \
+pour les deux signes retranche 1 quand la division ne tombe pas juste et que les \
+signes diffèrent. Python :
+
+```python
+print(7 // 2, -7 // 2, 7 // -2, -7 // -2)
+```
+
+Upea :
+
+```upea
+ohipa div_ent(a: numera, b: numera) -> numera {
+    tuu q = numera(a / b);
+    ahani a % b != 0 ma (a < 0) != (b < 0) {
+        q = q - 1;
+    }
+    hoi q;
+}
+
+faaite div_ent(7, 2), div_ent(-7, 2), div_ent(7, -2), div_ent(-7, -2);
+faaite numera(-7 / 2), div_ent(6, -3);
+```
+
+```sortie
+3 -4 -4 3
+-3 -2
+```
+
 ### Le hasard : un générateur pseudo-aléatoire
 
 Il n'y a pas de `random`. Un générateur congruentiel linéaire, écrit en Upea, donne \
@@ -1092,7 +1201,8 @@ def texte_depuis_python() -> str:
         "| Python | Upea |\n|---|---|\n"
         f"{lignes}\n\n"
         "Il n'y a pas d'opérateur de puissance (`x ** 2` : écrivez `x * x`), pas "
-        "d'expression conditionnelle (`a if c else b` : un `ahani`), pas de `//`.\n\n"
+        "d'expression conditionnelle (`a if c else b` : un `ahani`) ; `//` est un "
+        "commentaire (voir la division entière plus bas).\n\n"
         f"{RECETTES}"
     )
 

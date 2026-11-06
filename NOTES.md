@@ -179,7 +179,7 @@ observations demandées : l'IA lit-elle la spécification avant d'écrire ? quel
 erreurs fait-elle, et les messages de `verifier` lui suffisent-ils pour corriger ?
 combien d'allers-retours avant un programme correct ? ce qui a été amélioré ensuite. -->
 
-*Session 1 faite (une IA qui ne voyait que les outils a échoué : voir le [journal](docs/journal/exercice-final/index.md) et son rapport). Session 2 préparée, en attente.*
+*Session 1 faite (une IA qui ne voyait que les outils a échoué : voir le [journal](docs/journal/exercice-final/index.md) et son rapport). Session 2 faite deux fois : 2a avec un serveur lancé avant les corrections (rapport non déposé), 2b avec le serveur redémarré (programme traduit, `verifier` valide du premier coup). Les observations de l'auteur restent à rédiger.*
 
 ## Usage d'un assistant IA
 
