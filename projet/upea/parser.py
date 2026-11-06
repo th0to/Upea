@@ -384,8 +384,14 @@ class Parser:
     def type(self) -> TypeNote:
         token = self.regarde()
         if token.kind not in NOMS_DE_TYPE:
+            # Un tas max a le type des tas, `ahu` : l'annotation ne fixe pas l'ordre.
+            conseil = (
+                " : écrivez 'ahu' : un ahunui a le type ahu"
+                if token.kind is T.AHUNUI
+                else ""
+            )
             raise ErreurSyntaxe(
-                f"type attendu, trouvé {decrire(token)}", token.position
+                f"type attendu, trouvé {decrire(token)}{conseil}", token.position
             )
         self.avance()
         parametre = None

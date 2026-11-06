@@ -437,6 +437,7 @@ Règles :
 - **Inférence** : `tuu x = 1;` donne à `x` le type `numera` ; `x = "deux";` est alors refusé. `tuu x = aore;` donne le type inconnu, et `tuu l = [];` le type `tapura[?]`.
 - Une fonction sans `->` renvoie le type inconnu. Une fonction annotée `-> T` (autre que `aore`) doit renvoyer une valeur sur tous les chemins. Une boucle `tamau tia { … }` dont aucun `faaea` ne sort (ceux des boucles qu'elle contient ne comptent pas) ne se termine jamais d'elle-même : elle compte comme un chemin qui renvoie. Seul le littéral `tia` est reconnu : `tamau 1 == 1 { hoi 1; }` est refusé.
 - Les conditions (`ahani`, `tamau`) et les opérandes de `ma`, `anei`, `eiaha` doivent être des `tiahape` ; les bornes d'un intervalle et les indices des `numera`.
+- Un tas max s'annote `ahu`, comme un tas min : l'annotation `ahu` ne fixe pas l'ordre du tas, et `ahunui` n'est pas un nom de type.
 
 | Expression | Type |
 |---|---|

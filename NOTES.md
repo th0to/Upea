@@ -85,6 +85,7 @@ lot est l'identifiant du rapport, cité dans le message du commit.
 | M4 | *Fonctions prédéfinies*, `amui` | « ajoute `x` … dans l'arbre ordonné `c`, ou comme nœud du graphe `c` (sans effet s'il y est déjà) » | même raison : `amui` est surchargé, sans nouveau mot réservé |
 | L2 | *Lexique*, décimaux | deux phrases ajoutées : un exposant peut suivre un entier ou un décimal (`1e-05`, `1.5e+16`, `2E3`) | l'affichage écrit les très grands et très petits décimaux avec un exposant (`1e-05`), que le lexer refusait : la forme compacte d'une liste ou d'un graphe n'était pas relisible, contre ce que promet la spécification. Aucun programme valide ne change de sens : `1e…` était toujours une erreur |
 | L2 | *Limites assumées* | une puce ajoutée : littéral trop grand refusé, trop petit lu `0.0`, `inf` et `nan` non relisibles et refusés comme nœuds, poids et clés | l'exposant rend l'infini facile à écrire (`1e999`), qui donnait `NameError` avec un backend et `inf` avec l'autre ; un NaN dédoublait les nœuds, disparaissait comme clé d'arbre ordonné et faisait planter `bellman_ford` |
+| L4 | *Types*, règles | une puce ajoutée : un tas max s'annote `ahu`, l'annotation ne fixe pas l'ordre, `ahunui` n'est pas un nom de type | `tuu h: ahunui = …` donnait « type attendu, trouvé 'ahunui' » sans dire quoi écrire ; le message le dit désormais, et la règle est écrite |
 
 ## Outils Python mobilisés (refactorisation)
 
