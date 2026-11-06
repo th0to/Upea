@@ -148,8 +148,8 @@ _affiche((x + (3 * 4)))
 `backend.py` définit le contrat d'un backend : un `Protocol`, sans héritage (un nom,
 une extension, `executable`, et `generer(programme, analyse) -> Sortie`).
 `compilateur.BACKENDS` les range par nom. Ajouter un backend ne demande ni de toucher à
-la CLI ni aux autres backends (la recette est dans le guide du développeur,
-`docs/developpement.md`).
+la CLI ni aux autres backends (la recette est dans le [guide du
+développeur](developpement.md#ajouter-un-backend)).
 
 | Backend | Module | Ce qu'il produit |
 |---|---|---|

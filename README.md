@@ -167,6 +167,7 @@ npx @modelcontextprotocol/inspector --cli <uv> run --directory <dépôt>/projet 
 | [`NOTES.md`](NOTES.md) | l'enseignant | l'avancement étape par étape, les choix et les limites, les modifications depuis la validation de la spécification |
 | [`docs/tutoriel.md`](docs/tutoriel.md) | qui veut apprendre Upea | une progression pas à pas, du premier programme aux graphes et aux arbres ordonnés, avec des exercices corrigés |
 | [`docs/architecture.md`](docs/architecture.md) | un développeur, le jury | la chaîne de compilation, le prélude, le REPL, le serveur MCP, le rôle de chaque module, les choix de conception |
+| [`docs/developpement.md`](docs/developpement.md) | un contributeur | l'environnement, les vérifications, l'organisation des tests, la CI, et des recettes : ajouter une prédéfinie, un backend, un mot-clé |
 | [`docs/journal/`](docs/journal/) | qui veut retracer la démarche | les plans de travail successifs |
 
 ## Qualité

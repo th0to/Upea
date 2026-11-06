@@ -191,14 +191,9 @@ uv run python -m upea transpile exemples/02_fibonacci.upea -o fibo.py --sourcema
 uv run python -m upea transpile exemples/02_fibonacci.upea -o fibo.py --prelude externe  # + upea_prelude.py
 ```
 
-Les propriétés de l'extension 17 (`hypothesis`) font
-30 tirages par défaut (profil `defaut`) ; le profil `long` en fait 1 000, pour chercher
-plus loin (7 min 50 s le 6 novembre 2026) :
-
-```bash
-HYPOTHESIS_PROFILE=long uv run pytest projet -k extension_17                # bash
-$env:HYPOTHESIS_PROFILE = "long"; uv run pytest projet -k extension_17     # PowerShell
-```
+L'organisation des tests, et le profil `long` des propriétés de l'extension 17 (1 000
+tirages au lieu de 30), sont décrits dans le [guide du
+développeur](docs/developpement.md#3-les-tests).
 
 La liste de contrôle de livraison, qui dit où chaque exigence du cours est remplie, est
 dans [`PLAN_LIVRAISON.md`](PLAN_LIVRAISON.md).
