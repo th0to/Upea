@@ -37,6 +37,9 @@ Une expression seule (sans ';' final) est affichée. Ctrl-D (Ctrl-Z sous Windows
 
 @dataclass(frozen=True, slots=True)
 class Reponse:
+    """Ce que le REPL rend après chaque saisie : ce qu'il faut afficher, et
+    l'invite suivante (`INVITE`, ou `SUITE` si la saisie est incomplète)."""
+
     sortie: str
     invite: str
 

@@ -81,6 +81,9 @@ TROP_IMBRIQUE = "programme trop imbriqué pour être compilé"
 
 
 class Precedence(IntEnum):
+    """Les niveaux de priorité des opérateurs, du plus faible au plus fort
+    (`specification.md`, *Priorité et associativité des opérateurs*)."""
+
     AUCUNE = 0
     ANEI = 1
     MA = 2
@@ -174,6 +177,14 @@ class _Abandon(Exception):
 
 
 class Parser:
+    """Le parser : une descente récursive pour les instructions, la méthode de
+    Pratt pour les expressions (`REGLES_PREFIXE`, `REGLES_INFIXE`).
+
+    Une erreur de syntaxe ne l'arrête pas : elle va dans `erreurs`, et
+    l'analyse reprend à l'instruction suivante. Les docstrings des méthodes
+    citent la règle de grammaire (`specification.md`, *Grammaire*).
+    """
+
     def __init__(self, tokens: Iterable[Token]) -> None:
         self.flux: Flux[Token] = Flux(tokens)
         self.erreurs: list[ErreurUpea] = []
@@ -194,6 +205,8 @@ class Parser:
     # --- Accès aux tokens -------------------------------------------------------
 
     def regarde(self, decalage: int = 0) -> Token:
+        """Le token situé `decalage` places plus loin, sans le consommer ; au-delà de
+        la fin, toujours `FIN`."""
         token = self.flux.regarde(decalage)
         if token is None:
             # Au-delà de FIN : on rend FIN indéfiniment.
@@ -212,6 +225,7 @@ class Parser:
         return token
 
     def verifie(self, kind: T) -> bool:
+        """Le prochain token est-il de la sorte `kind` ? Il n'est pas consommé."""
         return self.regarde().kind is kind
 
     def accepte(self, kind: T) -> Token | None:
@@ -238,6 +252,11 @@ class Parser:
     # --- Expressions (Pratt) ------------------------------------------------------
 
     def expression(self, precedence: Precedence = Precedence.AUCUNE) -> Expr:
+        """Une expression, par la méthode de Pratt : un préfixe, puis les opérateurs
+        infixes plus prioritaires que `precedence`.
+
+        `expression = ou ;` et les règles qui la suivent.
+        """
         # L'expression la plus externe ne compte pas : chaque parenthèse, opérateur
         # préfixe, opérande de droite, argument ou élément ajoute un niveau. (Tout
         # tient dans une seule méthode : un appel Python de plus par niveau ferait
@@ -281,6 +300,7 @@ class Parser:
     # --- Instructions ---------------------------------------------------------------
 
     def programme(self) -> Programme:
+        """`programme = { instruction } FIN ;`"""
         instructions: list[Instr] = []
         while not self.verifie(T.FIN):
             if self.verifie(T.ACC_D):
@@ -332,6 +352,9 @@ class Parser:
                 return
 
     def instruction(self) -> Instr:
+        """`instruction = declaration | fonction | si | tantque | pour | rupture |
+        retour | affiche | affectation | expression ";" ;` : le premier token
+        choisit la règle."""
         token = self.regarde()
         match token.kind:
             case T.TUU | T.MAU:
@@ -358,6 +381,8 @@ class Parser:
                 return self.affectation_ou_expression()
 
     def bloc(self, contexte: str = "") -> Bloc:
+        """`bloc = "{" { instruction } "}" ;` ; `contexte` complète le message si
+        l'accolade ouvrante manque."""
         ouverture = self.attend(T.ACC_G, contexte)
         if self._blocs >= MAX_BLOCS:
             self._trop_imbrique(
@@ -382,6 +407,7 @@ class Parser:
             self._blocs -= 1
 
     def type(self) -> TypeNote:
+        """`type = ( IDENT | "upea" | "aore" | "imi" | … ) [ "[" type "]" ] ;`"""
         token = self.regarde()
         if token.kind not in NOMS_DE_TYPE:
             # Un tas max a le type des tas, `ahu` : l'annotation ne fixe pas l'ordre.
@@ -401,6 +427,8 @@ class Parser:
         return TypeNote(token.lexeme, parametre, token.position)
 
     def declaration(self) -> Declaration:
+        """`declaration = ( "tuu" | "mau" ) IDENT [ annotation ] "=" expression
+        ";" ;`"""
         mot_cle = self.avance()
         nom = self.attend(T.IDENT, f"après '{mot_cle.lexeme}'")
         annotation = self.type() if self.accepte(T.DEUX_POINTS) else None
@@ -414,6 +442,8 @@ class Parser:
         )
 
     def fonction(self) -> Fonction:
+        """`fonction = "ohipa" IDENT "(" [ parametre { "," parametre } ] ")"
+        [ "->" type ] bloc ;`"""
         self.avance()
         nom = self.attend(T.IDENT, "après 'ohipa'")
         self.attend(T.PAR_G, f"après le nom de la fonction '{nom.lexeme}'")
@@ -439,6 +469,8 @@ class Parser:
         return Fonction(nom.lexeme, tuple(parametres), corps, retour, nom.position)
 
     def si(self) -> Si:
+        """`si = "ahani" expression bloc { "taae" "ahani" expression bloc }
+        [ "taae" bloc ] ;`"""
         mot_cle = self.avance()
         condition = self.expression()
         branches = [
@@ -457,12 +489,15 @@ class Parser:
         return Si(tuple(branches), sinon, mot_cle.position)
 
     def tantque(self) -> TantQue:
+        """`tantque = "tamau" expression bloc ;`"""
         mot_cle = self.avance()
         condition = self.expression()
         corps = self.corps_de_boucle(mot_cle, "après la condition")
         return TantQue(condition, corps, mot_cle.position)
 
     def corps_de_boucle(self, mot_cle: Token, contexte: str) -> Bloc:
+        """Le bloc d'une boucle, en comptant les boucles imbriquées (au plus
+        `MAX_BOUCLES`)."""
         if self._boucles >= MAX_BOUCLES:
             self._trop_imbrique(
                 f"trop de boucles imbriquées ({MAX_BOUCLES} au plus)",
@@ -475,6 +510,7 @@ class Parser:
             self._boucles -= 1
 
     def pour(self) -> Pour:
+        """`pour = "tataitahi" IDENT "roto" expression [ suite_pour ] bloc ;`"""
         mot_cle = self.avance()
         variable = self.attend(T.IDENT, "après 'tataitahi'").lexeme
         self.attend(T.ROTO, f"après la variable de boucle '{variable}'")
@@ -499,6 +535,7 @@ class Parser:
         )
 
     def rupture(self) -> Rupture:
+        """`rupture = ( "faaea" | "haere" ) ";" ;`"""
         mot_cle = self.avance()
         self.attend(T.POINT_VIRGULE, f"après '{mot_cle.lexeme}'")
         if mot_cle.kind is T.FAAEA:
@@ -506,12 +543,14 @@ class Parser:
         return Rupture("haere", mot_cle.position)
 
     def retour(self) -> Retour:
+        """`retour = "hoi" [ expression ] ";" ;`"""
         mot_cle = self.avance()
         valeur = None if self.verifie(T.POINT_VIRGULE) else self.expression()
         self.attend(T.POINT_VIRGULE, "après 'hoi'")
         return Retour(valeur, mot_cle.position)
 
     def affiche(self) -> Affiche:
+        """`affiche = "faaite" [ expression { "," expression } ] ";" ;`"""
         mot_cle = self.avance()
         valeurs: list[Expr] = []
         if not self.verifie(T.POINT_VIRGULE):
@@ -523,6 +562,12 @@ class Parser:
         return Affiche(tuple(valeurs), mot_cle.position)
 
     def affectation_ou_expression(self) -> Affectation | ExprInstr:
+        """`affectation = cible "=" expression ";" ;`, ou `expression ";"`.
+
+        Une affectation commence comme une expression : on lit l'expression, puis,
+        si un `=` suit, on vérifie que c'est une cible (une variable, `t[i]` ou
+        `t.hotu`).
+        """
         debut = self.regarde()
         expression = self.expression()
         if self.accepte(T.EGAL):

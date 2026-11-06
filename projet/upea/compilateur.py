@@ -56,11 +56,15 @@ BACKENDS: dict[str, Backend] = {
 
 @dataclass(frozen=True, slots=True)
 class Compilation:
+    """Un programme compilé : son arbre syntaxique et son analyse sémantique."""
+
     programme: Programme
     analyse: Analyse
 
 
 def choisir_backend(nom: str) -> Backend:
+    """Le backend nommé `nom` ; un nom inconnu lève `ErreurUpea`, avec la liste
+    des backends disponibles."""
     try:
         return BACKENDS[nom]
     except KeyError:

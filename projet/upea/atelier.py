@@ -64,6 +64,8 @@ type JSON = dict[str, JSON] | list[JSON] | str | int | float | bool | None
 
 @dataclass(frozen=True)
 class Decoupage:
+    """Le résultat de `decouper` (l'outil `tokenize`)."""
+
     valide: bool  # aucune erreur lexicale
     jetons: tuple[Jeton, ...]  # jusqu'au token FIN, ou jusqu'à l'erreur
     diagnostics: tuple[Diagnostic, ...]
@@ -72,6 +74,8 @@ class Decoupage:
 
 @dataclass(frozen=True)
 class AnalyseSyntaxique:
+    """Le résultat d'`analyser_syntaxe` (l'outil `parse`)."""
+
     valide: bool  # aucune erreur lexicale ni de syntaxe
     arbre: JSON | None  # None si le programme a des erreurs
     diagnostics: tuple[Diagnostic, ...]
@@ -80,6 +84,8 @@ class AnalyseSyntaxique:
 
 @dataclass(frozen=True)
 class Verification:
+    """Le résultat de `verifier` (l'outil `verifier`)."""
+
     valide: bool  # aucune erreur (il peut rester des avertissements)
     diagnostics: tuple[Diagnostic, ...]
     rapport: str  # les mêmes, mis en forme comme par la CLI
@@ -87,6 +93,8 @@ class Verification:
 
 @dataclass(frozen=True)
 class Transpilation:
+    """Le résultat de `transpiler` (l'outil `transpiler`)."""
+
     code: str | None  # None si le programme a des erreurs
     diagnostics: tuple[Diagnostic, ...]
     rapport: str
@@ -94,12 +102,16 @@ class Transpilation:
 
 @dataclass(frozen=True)
 class Formatage:
+    """Le résultat de `formater` (l'outil `formater`)."""
+
     code: str | None  # None si le programme a des erreurs
     diagnostics: tuple[Diagnostic, ...]
     rapport: str
 
 
 def sorte(erreur: ErreurUpea) -> Sorte:
+    """La sorte d'une erreur, telle que la lit un client : `"lexicale"`,
+    `"syntaxe"`, `"semantique"`, `"type"`, `"avertissement"` ou `"execution"`."""
     match erreur:
         case ErreurLexicale():
             return "lexicale"

@@ -295,6 +295,9 @@ class _Constructeur:
 
 
 class GenerateurAst:
+    """Le second générateur de Python (extension 11) : il construit l'arbre `ast`
+    du programme, puis l'écrit avec `ast.unparse`."""
+
     nom = "ast"
     extension = ".py"
     executable = True
@@ -310,6 +313,9 @@ class GenerateurAst:
         return ast.fix_missing_locations(ast.Module(body=corps, type_ignores=[]))
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
+        """Le prélude (ou son import), puis le programme écrit par `ast.unparse`, et
+        la source map : les instructions relues sont appariées à celles de l'arbre
+        d'origine, qui portent les lignes d'Upea."""
         prelude = _texte_prelude(self.prelude)
         utilisateur = self.module(programme, analyse)
         # Le programme tel qu'`ast.unparse` l'écrirait à la suite du prélude.

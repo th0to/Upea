@@ -12,6 +12,9 @@ from .noeuds import TypeNote
 
 
 class Base(Enum):
+    """Les types simples d'Upea, et `INCONNU` (`?`) : le type que le typage
+    graduel ne connaît pas."""
+
     NUMERA = "numera"
     TUHAA = "tuhaa"
     PARAU = "parau"
@@ -56,14 +59,17 @@ INCONNU = Base.INCONNU
 
 
 def tapura(element: Type = INCONNU) -> Compose:
+    """Le type d'une liste : `tapura[T]`."""
     return Compose("tapura", element)
 
 
 def tumu(element: Type = INCONNU) -> Compose:
+    """Le type d'un arbre : `tumu[T]`."""
     return Compose("tumu", element)
 
 
 def upea(element: Type = INCONNU) -> Compose:
+    """Le type d'un graphe : `upea[T]`."""
     return Compose("upea", element)
 
 
@@ -98,10 +104,12 @@ def commun(a: Type, b: Type) -> Type:
 
 
 def commun_de(types: list[Type]) -> Type:
+    """Le type commun d'une suite de valeurs (`INCONNU` si elle est vide)."""
     return reduce(commun, types) if types else INCONNU
 
 
 def est_nombre(t: Type) -> bool:
+    """Vrai pour `numera` et `tuhaa`."""
     return t is NUMERA or t is TUHAA
 
 
@@ -121,6 +129,7 @@ def element_de(t: Type, noms: tuple[NomCompose, ...]) -> Type | None:
 
 
 def element(t: Type, nom: NomCompose) -> Type | None:
+    """Le paramètre de `t` s'il est de la sorte `nom` (voir `element_de`)."""
     return element_de(t, (nom,))
 
 

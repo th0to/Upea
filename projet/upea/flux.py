@@ -7,6 +7,9 @@ from collections.abc import Iterable, Iterator
 
 
 class Flux[T]:
+    """Un flux avec regard en avant : `regarde(n)` montre l'élément situé `n`
+    places plus loin sans le consommer, `avance()` consomme le suivant."""
+
     def __init__(self, source: Iterable[T]) -> None:
         self._source: Iterator[T] = iter(source)
         self._tampon: deque[T] = deque()
@@ -40,4 +43,5 @@ class Flux[T]:
         return self._tampon.popleft()
 
     def fini(self) -> bool:
+        """Vrai quand il ne reste plus rien à lire."""
         return self.regarde() is None

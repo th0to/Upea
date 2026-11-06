@@ -23,41 +23,56 @@ def _pos() -> Position:
 
 @dataclass(frozen=True, slots=True)
 class Entier:
+    """Un entier littéral : `42`."""
+
     valeur: int
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Decimal:
+    """Un décimal littéral : `3.14`, `1e-05`."""
+
     valeur: float
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Texte:
+    """Un texte littéral : `"Ia ora na"` ; `valeur` est le texte décodé, sans
+    guillemets ni échappements."""
+
     valeur: str
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Booleen:
+    """`tia` (vrai) ou `hape` (faux)."""
+
     valeur: bool
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Rien:
+    """`aore`, l'absence de valeur."""
+
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Variable:
+    """Un nom lu dans une expression : `x`."""
+
     nom: str
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Liste:
+    """Une liste littérale : `[1, 2, 3]`."""
+
     elements: tuple[Expr, ...]
     pos: Position = _pos()
 
@@ -76,6 +91,8 @@ class Arete:
 
 @dataclass(frozen=True, slots=True)
 class Graphe:
+    """Un graphe littéral : `upea { "A" -> "B" : 3, "C" }`."""
+
     aretes: tuple[Arete, ...]
     pos: Position = _pos()
 
@@ -98,6 +115,8 @@ type OpUnaire = Literal["-", "eiaha"]
 
 @dataclass(frozen=True, slots=True)
 class Unaire:
+    """Un opérateur préfixe : `-x`, `eiaha fini`."""
+
     op: OpUnaire
     operande: Expr
     pos: Position = _pos()
@@ -105,6 +124,8 @@ class Unaire:
 
 @dataclass(frozen=True, slots=True)
 class Binaire:
+    """Un opérateur entre deux opérandes : `a + b`, `a == b`, `x roto l`."""
+
     op: str  # lexème : "+", "==", "ma", "roto", ...
     gauche: Expr
     droite: Expr
@@ -113,6 +134,9 @@ class Binaire:
 
 @dataclass(frozen=True, slots=True)
 class Appel:
+    """L'appel d'une fonction, définie par le programme ou prédéfinie :
+    `f(a, b)`."""
+
     nom: str
     arguments: tuple[Expr, ...]
     pos: Position = _pos()
@@ -120,6 +144,8 @@ class Appel:
 
 @dataclass(frozen=True, slots=True)
 class Index:
+    """Un élément d'une liste : `l[i]`."""
+
     objet: Expr
     indice: Expr
     pos: Position = _pos()
@@ -127,6 +153,8 @@ class Index:
 
 @dataclass(frozen=True, slots=True)
 class Champ:
+    """Un champ d'un `tumu` : `t.hotu`, `t.amaa`."""
+
     objet: Expr
     nom: str
     pos: Position = _pos()
@@ -166,12 +194,17 @@ class TypeNote:
 
 @dataclass(frozen=True, slots=True)
 class Bloc:
+    """Des instructions entre accolades : `{ … }`."""
+
     instructions: tuple[Instr, ...]
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Declaration:
+    """Une déclaration : `tuu x = 1;`, ou `mau x = 1;` pour une constante, avec
+    une annotation facultative : `tuu x: numera = 1;`."""
+
     nom: str
     valeur: Expr
     annotation: TypeNote | None = None
@@ -181,6 +214,9 @@ class Declaration:
 
 @dataclass(frozen=True, slots=True)
 class Affectation:
+    """Une affectation : `cible = valeur;`, la cible étant une variable, un
+    élément ou un champ."""
+
     cible: Variable | Index | Champ
     valeur: Expr
     pos: Position = _pos()
@@ -188,18 +224,24 @@ class Affectation:
 
 @dataclass(frozen=True, slots=True)
 class ExprInstr:
+    """Une expression employée comme instruction : `amui(l, 3);`."""
+
     expression: Expr
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Affiche:
+    """L'affichage : `faaite a, b;`."""
+
     valeurs: tuple[Expr, ...]
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Branche:
+    """Une condition et son bloc : un `ahani`, ou un `taae ahani`."""
+
     condition: Expr
     corps: Bloc
     pos: Position = _pos()
@@ -207,6 +249,9 @@ class Branche:
 
 @dataclass(frozen=True, slots=True)
 class Si:
+    """Une condition : `ahani c { … } taae ahani d { … } taae { … }`, les
+    branches dans l'ordre, puis le bloc `taae` facultatif."""
+
     branches: tuple[Branche, ...]
     sinon: Bloc | None = None
     pos: Position = _pos()
@@ -214,6 +259,8 @@ class Si:
 
 @dataclass(frozen=True, slots=True)
 class TantQue:
+    """La boucle `tamau condition { … }`."""
+
     condition: Expr
     corps: Bloc
     pos: Position = _pos()
@@ -238,18 +285,24 @@ class Pour:
 
 @dataclass(frozen=True, slots=True)
 class Rupture:
+    """`faaea;` (sortir de la boucle) ou `haere;` (passer au tour suivant)."""
+
     genre: Literal["faaea", "haere"]
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Retour:
+    """Un retour : `hoi valeur;`, ou `hoi;` sans valeur."""
+
     valeur: Expr | None = None
     pos: Position = _pos()
 
 
 @dataclass(frozen=True, slots=True)
 class Parametre:
+    """Un paramètre de fonction, avec son annotation facultative : `n: numera`."""
+
     nom: str
     annotation: TypeNote | None = None
     pos: Position = _pos()
@@ -257,6 +310,8 @@ class Parametre:
 
 @dataclass(frozen=True, slots=True)
 class Fonction:
+    """Une fonction : `ohipa nom(a, b: numera) -> numera { … }`."""
+
     nom: str
     parametres: tuple[Parametre, ...]
     corps: Bloc
@@ -280,6 +335,8 @@ type Instr = (
 
 @dataclass(frozen=True, slots=True)
 class Programme:
+    """La racine de l'arbre : les instructions du fichier."""
+
     instructions: tuple[Instr, ...]
     pos: Position = _pos()
 

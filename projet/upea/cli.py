@@ -94,6 +94,11 @@ def _avertissements(source: str, fichier: str, types: bool) -> None:
 
 
 def commande_run(args: argparse.Namespace) -> int:
+    """`upea run` : exécute le programme, après avoir affiché ses avertissements.
+
+    Codes de retour : 0 (succès), 1 (compilation), 2 (utilisation : backend
+    inconnu ou qui ne produit pas de Python), 3 (exécution), 130 (Ctrl-C).
+    """
     source = _lire(args.fichier)
     if source is None:
         return ERREUR_COMPILATION
@@ -135,6 +140,9 @@ def commande_run(args: argparse.Namespace) -> int:
 
 
 def commande_transpile(args: argparse.Namespace) -> int:
+    """`upea transpile` : affiche le code produit, ou l'écrit dans `-o` ; avec
+    `--sourcemap`, la source map à côté, et avec `--prelude externe`, le prélude
+    dans `upea_prelude.py`."""
     if args.sourcemap and args.sortie is None:
         _erreur("upea : --sourcemap demande un fichier de sortie (-o)")
         return ERREUR_USAGE
@@ -180,6 +188,8 @@ def commande_transpile(args: argparse.Namespace) -> int:
 
 
 def commande_check(args: argparse.Namespace) -> int:
+    """`upea check` : vérifie le programme sans l'exécuter ; ses avertissements
+    vont sur la sortie d'erreur."""
     source = _lire(args.fichier)
     if source is None:
         return ERREUR_COMPILATION
@@ -193,6 +203,8 @@ def commande_check(args: argparse.Namespace) -> int:
 
 
 def commande_fmt(args: argparse.Namespace) -> int:
+    """`upea fmt` : affiche le programme dans sa présentation canonique, ou, avec
+    `--ecrire`, réécrit le fichier et dit combien de commentaires sont perdus."""
     source = _lire(args.fichier)
     if source is None:
         return ERREUR_COMPILATION
@@ -214,6 +226,7 @@ def commande_fmt(args: argparse.Namespace) -> int:
 
 
 def commande_repl(args: argparse.Namespace) -> int:
+    """`upea repl` : branche le REPL sur `input()`, jusqu'à la fin de l'entrée."""
     session = repl(types=args.types)
     reponse = next(session)
     print(BANNIERE)
@@ -235,6 +248,8 @@ MODULES_DU_SDK = frozenset({"mcp", "mcp_types", "pydantic"})
 
 
 def commande_mcp(args: argparse.Namespace) -> int:
+    """`upea mcp` : lance le serveur MCP en stdio ; sans le SDK `mcp`, un message
+    et le code 2."""
     try:
         from .serveur_mcp import lancer
     except ModuleNotFoundError as absent:
@@ -250,6 +265,8 @@ def commande_mcp(args: argparse.Namespace) -> int:
 
 
 def construire_parser() -> argparse.ArgumentParser:
+    """Le parser `argparse` des sous-commandes ; chacune range sa fonction dans
+    `action`."""
     parser = argparse.ArgumentParser(
         prog="upea",
         description="Upea : un langage aux mots-clés tahitiens, transpilé en Python.",
@@ -328,6 +345,8 @@ def construire_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    """Le point d'entrée de `python -m upea`. Rend le code de retour au lieu de
+    quitter : les tests appellent `main` directement."""
     # Les dessins et les lignes de source citées dans les erreurs ne passent pas
     # toujours dans l'encodage d'une sortie redirigée (cp1252 sous Windows).
     _en_utf8(sys.stdout)

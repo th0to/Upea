@@ -46,18 +46,28 @@ class ErreurUpea(Exception):
 
 
 class ErreurLexicale(ErreurUpea):
+    """Un caractère ou un mot que le lexer ne sait pas lire."""
+
     genre = "erreur lexicale"
 
 
 class ErreurSyntaxe(ErreurUpea):
+    """Des tokens qui ne forment pas un programme selon la grammaire."""
+
     genre = "erreur de syntaxe"
 
 
 class ErreurSemantique(ErreurUpea):
+    """Un programme bien formé, mais faux : un nom non déclaré, un masquage, un
+    `faaea` hors d'une boucle…"""
+
     genre = "erreur sémantique"
 
 
 class ErreurType(ErreurSemantique):
+    """Une erreur du vérificateur de types (extension 12) : une sorte d'erreur
+    sémantique, que `--sans-types` fait taire."""
+
     genre = "erreur de type"
 
 
@@ -68,6 +78,9 @@ class Avertissement(ErreurUpea):
 
 
 class ErreurExecution(ErreurUpea):
+    """Une erreur levée pendant l'exécution, ramenée à la ligne Upea du programme
+    (sa colonne est inconnue)."""
+
     genre = "erreur d'exécution"
 
 

@@ -12,6 +12,9 @@ from .typage import INCONNU, Signature, Type
 
 
 class Genre(Enum):
+    """Ce que désigne un nom : une valeur (variable, constante, variable de
+    boucle, paramètre) ou une fonction. La valeur est le mot des messages."""
+
     VARIABLE = "variable"
     CONSTANTE = "constante"
     BOUCLE = "variable de boucle"
@@ -27,6 +30,9 @@ class Genre(Enum):
 
 @dataclass(slots=True)
 class Symbole:
+    """Un nom déclaré : son genre, sa position, son type, la signature d'une
+    fonction, et s'il a servi (sinon, un avertissement)."""
+
     nom: str
     genre: Genre
     pos: Position
@@ -37,6 +43,9 @@ class Symbole:
 
 @dataclass(slots=True)
 class Portee:
+    """Une portée (un bloc, une fonction, la portée globale ou celle des
+    prédéfinies), et les symboles qui y sont déclarés."""
+
     nom: str
     est_fonction: bool = False
     symboles: dict[str, Symbole] = field(default_factory=dict)
@@ -50,14 +59,17 @@ class TableSymboles:
 
     @property
     def predefinies(self) -> Portee:
+        """La portée des fonctions prédéfinies, au fond de la pile."""
         return self._portees[0]
 
     @property
     def globale(self) -> Portee:
+        """La portée globale, celle du programme."""
         return self._portees[1]
 
     @property
     def courante(self) -> Portee:
+        """La portée la plus intérieure, où vont les déclarations."""
         return self._portees[-1]
 
     @property
@@ -80,12 +92,15 @@ class TableSymboles:
         self.courante.symboles.setdefault(symbole.nom, symbole)
 
     def chercher_avec_portee(self, nom: str) -> tuple[Symbole, Portee] | None:
+        """Le symbole visible de nom `nom`, et sa portée, en partant de la plus
+        intérieure ; `None` s'il n'y en a pas."""
         for portee in reversed(self._portees):
             if nom in portee.symboles:
                 return portee.symboles[nom], portee
         return None
 
     def chercher(self, nom: str) -> Symbole | None:
+        """Le symbole visible de nom `nom`, ou `None`."""
         trouve = self.chercher_avec_portee(nom)
         return None if trouve is None else trouve[0]
 

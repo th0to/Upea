@@ -41,6 +41,10 @@ type Typeur = Callable[[tuple[Type, ...], Signaler], Type]
 
 @dataclass(frozen=True, slots=True)
 class Predefinie:
+    """Une fonction prédéfinie, vue du compilateur : son nombre d'arguments (de
+    `minimum` à `maximum`), le typeur qui calcule son type de retour et
+    signale les arguments mal typés, et sa signature lisible."""
+
     nom: str
     minimum: int
     maximum: int | None  # None : autant qu'on veut
@@ -103,6 +107,7 @@ class Patron:
     verifier: Callable[[Type, Liaison], str | None]
 
     def __call__(self, recu: Type, liaison: Liaison) -> str | None:
+        """Vérifie `recu` ; rend un message d'erreur, ou `None` s'il convient."""
         return self.verifier(recu, liaison)
 
 
@@ -202,6 +207,7 @@ def fixe(resultat: Type) -> Callable[[Type], Type]:
 
 
 def identite(t: Type) -> Type:
+    """Un type de retour égal au type `T` lié par les patrons."""
     return t
 
 

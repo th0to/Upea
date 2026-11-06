@@ -151,6 +151,13 @@ def quitte_la_boucle(instructions: tuple[Instr, ...]) -> bool:
 
 
 class Analyseur:
+    """Le visiteur de l'analyse sémantique et des types.
+
+    Il parcourt l'arbre une fois : il déclare les noms dans la table des
+    symboles, vérifie leurs usages et (si `types`) leurs types, et collecte
+    les erreurs et les avertissements.
+    """
+
     def __init__(self, *, types: bool = True) -> None:
         self.verifier_types = types
         self.table = TableSymboles()
@@ -168,13 +175,17 @@ class Analyseur:
     # --- Signalement ----------------------------------------------------------------
 
     def erreur(self, message: str, position: Position) -> None:
+        """Note une erreur sémantique."""
         self.erreurs.append(ErreurSemantique(message, position))
 
     def erreur_type(self, message: str, position: Position) -> None:
+        """Note une erreur de type, sauf si les types ne sont pas vérifiés
+        (`--sans-types`)."""
         if self.verifier_types:
             self.erreurs.append(ErreurType(message, position))
 
     def avertir(self, message: str, position: Position) -> None:
+        """Note un avertissement, qui n'empêche pas l'exécution."""
         self.avertissements.append(Avertissement(message, position))
 
     def exiger(
@@ -202,6 +213,7 @@ class Analyseur:
 
     @contextmanager
     def dans_fonction(self, fonction: _Fonction) -> Iterator[None]:
+        """Le temps du `with`, l'analyse est dans le corps de `fonction`."""
         precedente, boucles = self._fonction, self._boucles
         self._fonction, self._boucles = fonction, 0
         try:
@@ -211,6 +223,8 @@ class Analyseur:
 
     @contextmanager
     def dans_boucle(self) -> Iterator[None]:
+        """Le temps du `with`, l'analyse est dans une boucle : `faaea` et `haere` y
+        sont permis."""
         self._boucles += 1
         try:
             yield
@@ -218,6 +232,8 @@ class Analyseur:
             self._boucles -= 1
 
     def type_de(self, note: TypeNote | None) -> Type:
+        """Le type d'une annotation, `INCONNU` s'il n'y en a pas ; une annotation
+        invalide est notée comme erreur."""
         if note is None:
             return INCONNU
         try:
@@ -231,6 +247,10 @@ class Analyseur:
     def declarer(
         self, nom: str, genre: Genre, position: Position, type_: Type = INCONNU
     ) -> None:
+        """Déclare `nom` dans la portée courante, sauf s'il enfreint une règle de la
+        spécification : le nom d'une fonction, une redéclaration dans le même
+        bloc, un masquage, ou une locale qui changerait le sens d'une globale
+        déjà lue dans la fonction."""
         reserve = self.table.chercher(nom)
         if reserve is not None and not reserve.genre.est_valeur:
             sorte = (
@@ -292,6 +312,8 @@ class Analyseur:
         fonction.globales_lues.setdefault(symbole.nom, position)
 
     def lire(self, nom: str, position: Position) -> Symbole | None:
+        """Le symbole de `nom`, marqué comme utilisé ; `None` s'il n'est pas déclaré
+        (l'erreur propose un nom proche)."""
         trouve = self.table.chercher_avec_portee(nom)
         if trouve is None:
             self._non_declare(nom, position)
@@ -304,6 +326,8 @@ class Analyseur:
     # --- Programme et blocs -----------------------------------------------------------
 
     def programme(self, programme: Programme) -> Analyse:
+        """Analyse le programme entier : rend son `Analyse`, ou lève
+        `ErreursMultiples` avec toutes les erreurs, triées par ligne."""
         self.instructions(programme.instructions)
         for symbole in self.table.globale.symboles.values():
             self._verifier_utilise(symbole)
@@ -322,6 +346,8 @@ class Analyseur:
         )
 
     def instructions(self, instructions: tuple[Instr, ...]) -> None:
+        """Analyse une suite d'instructions, et signale une fois le code placé après
+        `hoi`, `faaea` ou `haere`."""
         mort_signale = False
         for i, instruction in enumerate(instructions):
             self.instruction(instruction)
@@ -337,6 +363,7 @@ class Analyseur:
                 mort_signale = True
 
     def bloc(self, bloc: Bloc, nom: str = "bloc") -> None:
+        """Analyse un bloc, dans sa propre portée."""
         with self.portee(nom):
             self.instructions(bloc.instructions)
 
@@ -344,6 +371,8 @@ class Analyseur:
 
     @singledispatchmethod
     def instruction(self, noeud: Instr) -> None:
+        """Analyse une instruction : une variante par sorte de nœud, enregistrée par
+        `@instruction.register`."""
         raise NotImplementedError(f"instruction non gérée : {type(noeud).__name__}")
 
     @instruction.register
@@ -409,6 +438,8 @@ class Analyseur:
             self.expression(valeur)
 
     def condition(self, expression: Expr, mot: str) -> None:
+        """Analyse la condition d'un `ahani` ou d'un `tamau` (`mot`), qui doit être
+        un `tiahape`."""
         recu = self.expression(expression)
         self.exiger(TIAHAPE, recu, f"condition du {mot}", expression.pos)
 
@@ -556,6 +587,8 @@ class Analyseur:
 
     @singledispatchmethod
     def expression(self, noeud: Expr) -> Type:
+        """Le type d'une expression : une variante par sorte de nœud, enregistrée par
+        `@expression.register`."""
         raise NotImplementedError(f"expression non gérée : {type(noeud).__name__}")
 
     @expression.register

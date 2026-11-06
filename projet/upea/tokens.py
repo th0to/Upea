@@ -95,6 +95,7 @@ class TokenKind(Enum):
 
     @property
     def est_mot_cle(self) -> bool:
+        """Vrai pour un mot réservé (`tuu`, `ohipa`…), faux pour un symbole."""
         return self.est_fixe and self.value.isalpha()
 
     def __str__(self) -> str:
@@ -113,6 +114,9 @@ SYMBOLES: list[tuple[str, TokenKind]] = sorted(
 
 @dataclass(frozen=True, slots=True)
 class Token:
+    """Un token : sa sorte, son lexème (pour un texte, sa valeur décodée) et sa
+    position dans le source."""
+
     kind: TokenKind
     lexeme: str
     position: Position

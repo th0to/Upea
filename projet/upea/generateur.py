@@ -208,6 +208,8 @@ class GenerateurPython:
         )
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
+        """Le prélude (ou son import), puis le programme traduit, et la source map
+        décalée des lignes du prélude."""
         code, sourcemap = self.traduire(programme.instructions, analyse)
         entete = self.prelude + "\n\n" + SEPARATEUR
         return Sortie(entete + code, sourcemap.decaler(entete.count("\n")))

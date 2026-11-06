@@ -10,6 +10,32 @@ L'enfant écrit ce qu'affiche le programme sur sa sortie standard, en vidant cha
 Puis il écrit un marqueur, tiré au hasard par le parent pour cette exécution, suivi
 du résultat en JSON. Le programme ne connaît pas le marqueur : il ne peut pas imiter
 le résultat.
+
+Sécurité (`mcp/etapes/04_execution.md` du cours). Un programme Upea ne peut que
+calculer et afficher : le langage n'a ni import, ni clavier, ni fichiers, ni réseau
+(`specification.md`, *Limites assumées*). Et rien, dans un programme, ne devient du
+Python que le compilateur n'a pas prévu :
+
+- un texte entre dans le code généré par `repr` (ou un `ast.Constant`) :
+  `"\\"); import os; (\\""` reste un texte, affiché tel quel ;
+- un commentaire s'arrête au lexer ;
+- un identifiant ne commence jamais par `_` (le lexer le refuse) : le prélude, dont
+  tous les noms commencent par `_`, est hors d'atteinte, ses imports compris ;
+- un nom non déclaré est refusé avant l'exécution, avec ou sans les types : `open`,
+  `eval` ou `globals` n'atteignent jamais Python. Un nom de Python déclaré dans le
+  programme (`tuu print = 3;`) devient une variable renommée (`_v_print`) ;
+- un champ ne peut être que `hotu` ou `amaa`.
+
+Ce que le bac à sable ajoute, pour ce qu'un programme valide peut faire de mal : un
+délai, une sortie plafonnée, une mémoire et un temps CPU bornés (un *job object*
+sous Windows, `setrlimit` ailleurs ; macOS n'applique pas la limite de mémoire), un
+processus séparé (le serveur survit à un plantage), et un environnement réduit (les
+variables du serveur n'atteignent pas l'enfant).
+
+Ce qu'il ne protège pas : l'enfant a les droits de l'utilisateur qui lance le
+serveur. Si une faille du compilateur laissait passer du Python arbitraire, il
+pourrait lire les fichiers et le réseau : il faudrait alors un vrai bac à sable
+(un conteneur, un utilisateur dédié, un filtre des appels système).
 """
 
 from __future__ import annotations
@@ -54,6 +80,8 @@ type Statut = Literal["succes", "erreur_compilation", "erreur_execution"]
 # Pas de `slots`, comme les résultats de l'atelier : ce résultat est celui d'un outil.
 @dataclass(frozen=True)
 class Execution:
+    """Le résultat d'une exécution dans le bac à sable (l'outil `executer`)."""
+
     statut: Statut
     code_retour: int  # comme `python -m upea run` : 0, 1 (compilation), 3 (exécution)
     sortie: str  # ce que le programme a affiché, au plus `PLAFOND` octets
@@ -68,6 +96,9 @@ class PanneDuBacASable(Exception):
 
 
 class DelaiDepasse(PanneDuBacASable):
+    """Le programme a dépassé son délai, et l'enfant a été tué ; `sortie` est ce
+    qu'il avait affiché avant."""
+
     def __init__(self, delai: float, sortie: str, tronquee: bool) -> None:
         super().__init__(
             f"délai de {delai:g} s dépassé : le programme a été arrêté "
@@ -78,6 +109,8 @@ class DelaiDepasse(PanneDuBacASable):
 
 
 class EnfantEnPanne(PanneDuBacASable):
+    """L'enfant s'est arrêté sans rendre de résultat lisible."""
+
     pass
 
 

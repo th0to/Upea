@@ -7,6 +7,9 @@ from contextlib import contextmanager
 
 
 class Emetteur:
+    """Produit des lignes indentées, et note pour chacune la ligne source dont
+    elle provient (`correspondances`, d'où vient la source map)."""
+
     def __init__(self, indentation: str = "    ") -> None:
         self._lignes: list[str] = []
         self._indentation = indentation
@@ -50,4 +53,5 @@ class Emetteur:
             self._source = precedente
 
     def texte(self) -> str:
+        """Le texte produit, chaque ligne terminée par un saut de ligne."""
         return "".join(ligne + "\n" for ligne in self._lignes)

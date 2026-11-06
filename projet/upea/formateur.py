@@ -65,6 +65,8 @@ def decimal_upea(valeur: float) -> str:
 
 
 def precedence(expr: Expr) -> int:
+    """La précédence d'une expression : un opérande moins prioritaire que son
+    opérateur reçoit des parenthèses."""
     match expr:
         case Binaire(op):
             return PRECEDENCE_BINAIRE[op]
@@ -79,6 +81,7 @@ def precedence(expr: Expr) -> int:
 
 
 def note(type_: TypeNote) -> str:
+    """Une annotation de type écrite en Upea : `tapura[numera]`."""
     return (
         type_.nom
         if type_.parametre is None
@@ -233,11 +236,15 @@ class _Ecrivain:
 
 
 class Formateur:
+    """Le troisième backend : réécrit un programme Upea dans sa présentation
+    canonique. Ce qu'il produit n'est pas du Python (`executable` est faux)."""
+
     nom = "formateur"
     extension = ".upea"
     executable = False
 
     def generer(self, programme: Programme, analyse: Analyse) -> Sortie:
+        """Le programme réécrit ; `analyse` ne sert pas, la syntaxe suffit."""
         ecrivain = _Ecrivain()
         ecrivain.programme(programme)
         return Sortie(ecrivain.e.texte())
