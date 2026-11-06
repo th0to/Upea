@@ -27,6 +27,11 @@ def _est_suite_identifiant(c: str) -> bool:
     return c.isalnum() or c == "_"
 
 
+def _est_chiffre(source: str, i: int) -> bool:
+    """Un chiffre ASCII à l'indice `i` (faux au-delà de la fin)."""
+    return i < len(source) and source[i].isdigit() and source[i].isascii()
+
+
 def tokenize(source: str) -> Iterator[Token]:
     """Découpe `source` en tokens, le dernier étant toujours `FIN`.
 
@@ -93,6 +98,18 @@ def tokenize(source: str) -> Iterator[Token]:
                         f"(écrivez {source[debut:i]}.0)",
                         position(i),
                     )
+            # Un exposant : `1e-05`, `1.5e+16`, `2E3`, la forme qu'a l'affichage des
+            # très grands et très petits décimaux. Sans chiffre après le `e` (et
+            # son signe), il n'y a pas d'exposant : `1e` reste un nombre mal formé.
+            if i < n and source[i] in "eE":
+                fin_exposant = i + 1
+                if fin_exposant < n and source[fin_exposant] in "+-":
+                    fin_exposant += 1
+                if _est_chiffre(source, fin_exposant):
+                    while _est_chiffre(source, fin_exposant):
+                        fin_exposant += 1
+                    i = fin_exposant
+                    kind = TokenKind.DECIMAL
             if i < n and _est_suite_identifiant(source[i]):
                 fin_mot = i
                 while fin_mot < n and _est_suite_identifiant(source[fin_mot]):

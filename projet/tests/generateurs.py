@@ -83,9 +83,13 @@ PROGRAMMES: Strategie = st.lists(instructions(2), min_size=1, max_size=4).map(
 
 # --- Les littéraux de structures ------------------------------------------------------
 
-NOEUDS: Strategie = st.one_of(st.integers(-3, 9).map(str), TEXTES)
+#: Des décimaux finis quelconques, écrits comme Python les affiche (`1e-05`, `1e+16`) :
+#: leur forme compacte doit se relire (conseil, L2).
+DECIMAUX: Strategie = st.floats(allow_nan=False, allow_infinity=False).map(repr)
+
+NOEUDS: Strategie = st.one_of(st.integers(-3, 9).map(str), TEXTES, DECIMAUX)
 POIDS: Strategie = st.one_of(
-    st.integers(-5, 5).map(str), st.sampled_from(["0.5", "-2.5", "1.0"])
+    st.integers(-5, 5).map(str), st.sampled_from(["0.5", "-2.5", "1.0"]), DECIMAUX
 )
 
 

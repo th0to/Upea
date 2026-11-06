@@ -3,6 +3,7 @@ ordre d'apparition."""
 
 from __future__ import annotations
 
+import math as _math
 from collections import deque as _deque
 from collections.abc import Callable as _Callable
 from functools import wraps as _wraps
@@ -18,6 +19,9 @@ def _verifier_noeud(noeud: object) -> None:
             "un nœud de upea doit être un numera, un tuhaa ou un parau, "
             f"pas un {_sorte(noeud)}"
         )
+    # Un NaN n'est égal à rien, pas même à lui-même : il ferait un nœud par ajout.
+    if type(noeud) is float and not _math.isfinite(noeud):
+        raise _Erreur(f"un nœud de upea doit être un nombre fini, pas {_texte(noeud)}")
 
 
 @_sorte_upea("upea")
@@ -35,6 +39,10 @@ class _Upea:
                 f"le poids d'un arc doit être un nombre, pas un {_sorte(poids)}"
             )
         assert isinstance(poids, int | float)
+        if not _math.isfinite(poids):
+            raise _Erreur(
+                f"le poids d'un arc doit être un nombre fini, pas {_texte(poids)}"
+            )
         self.ajouter(depart)
         self.ajouter(arrivee)
         self._arcs[depart][arrivee] = poids

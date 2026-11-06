@@ -3,6 +3,7 @@ récursive pour les instructions, avec récupération d'erreurs (étape 6)."""
 
 from __future__ import annotations
 
+import math
 import sys
 from collections.abc import Callable, Iterable
 from enum import IntEnum
@@ -547,7 +548,11 @@ def _entier(p: Parser, t: Token) -> Expr:
 
 @prefixe(T.DECIMAL)
 def _decimal(p: Parser, t: Token) -> Expr:
-    return Decimal(float(t.lexeme), t.position)
+    valeur = float(t.lexeme)
+    if not math.isfinite(valeur):  # `1e999` : Python le lit comme un infini
+        cite = t.lexeme if len(t.lexeme) <= 24 else t.lexeme[:20] + "…"
+        raise ErreurSyntaxe(f"décimal trop grand : {cite}", t.position)
+    return Decimal(valeur, t.position)
 
 
 @prefixe(T.TEXTE)

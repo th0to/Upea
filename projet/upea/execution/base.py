@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io as _io
+import math as _math
 import os as _os
 import sys as _sys
 from collections.abc import Callable as _Callable
@@ -108,6 +109,10 @@ def _verifier_cle(cle: object, sorte: str, voisine: object = None) -> None:
         raise _Erreur(
             f"une clé de {sorte} doit être un numera, un tuhaa ou un parau, "
             f"pas un {_sorte(cle)}"
+        )
+    if type(cle) is float and not _math.isfinite(cle):  # un infini, ou un NaN
+        raise _Erreur(
+            f"une clé de {sorte} doit être un nombre fini, pas {_texte(cle)}"
         )
     if voisine is not None and isinstance(voisine, str) != isinstance(cle, str):
         raise _Erreur(
