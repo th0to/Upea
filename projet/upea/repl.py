@@ -17,6 +17,7 @@ from .compilateur import (
 from .erreurs import ErreurLexicale, ErreurUpea, formater
 from .noeuds import afficher_arbre
 from .parser import DEBUTS_INSTRUCTION
+from .sourcemap import SourceMap
 from .tokens import TokenKind
 
 INVITE = "upea> "
@@ -80,6 +81,11 @@ class _Session:
         self.acceptees = ""  # le source des saisies acceptées
         self.executees = 0  # le nombre d'instructions déjà exécutées
         self.espace = nouvel_espace(avec_prelude=True)
+        # Chaque saisie est compilée sous son propre nom de fichier ; celles qui sont
+        # retenues gardent leur carte : une fonction déclarée plus tôt garde ainsi
+        # les lignes de sa saisie.
+        self.saisies = 0
+        self.cartes: dict[str, SourceMap] = {}
 
     def evaluer(self, saisie: str) -> str:
         source = self.acceptees + envelopper(saisie) + "\n"
@@ -89,12 +95,17 @@ class _Session:
             return formater(erreur, source, FICHIER) + "\n"
         nouvelles = compilation.programme.instructions[self.executees :]
         code, sourcemap = traduire_suite(nouvelles, compilation.analyse)
+        self.saisies += 1
+        nom = f"<upea-{self.saisies}>"
         tampon = io.StringIO()
         try:
             with redirect_stdout(tampon):
-                executer_code(code, sourcemap, self.espace)
+                executer_code(
+                    code, sourcemap, self.espace, nom=nom, cartes=self.cartes
+                )
         except ErreurUpea as erreur:  # d'exécution, ou de compilation (le filet)
             return tampon.getvalue() + formater(erreur, source, FICHIER) + "\n"
+        self.cartes[nom] = sourcemap
         self.acceptees = source
         self.executees = len(compilation.programme.instructions)
         return tampon.getvalue()

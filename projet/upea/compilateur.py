@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 import traceback
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from types import CodeType
@@ -177,17 +177,31 @@ def nouvel_espace(avec_prelude: bool = False) -> dict[str, object]:
 
 
 def executer_code(
-    code: str | CodeType, sourcemap: SourceMap, espace: dict[str, object] | None = None
+    code: str | CodeType,
+    sourcemap: SourceMap,
+    espace: dict[str, object] | None = None,
+    *,
+    nom: str = NOM_FICHIER,
+    cartes: Mapping[str, SourceMap] | None = None,
 ) -> None:
     """Exécute du code généré ; une exception Python devient une `ErreurExecution`.
 
+    Le code est compilé sous le nom de fichier `nom`. `cartes` donne la source map
+    des autres codes déjà exécutés dans le même espace (le REPL compile chaque
+    saisie à part) : une erreur levée dans une fonction d'une saisie antérieure est
+    lue avec la carte de cette saisie.
+
     Lève `ErreursMultiples` si CPython refuse de compiler le code (trop imbriqué).
     """
-    objet = code if isinstance(code, CodeType) else _compiler_le_python(code, sourcemap)
+    toutes = {**(cartes or {}), nom: sourcemap}
+    if isinstance(code, CodeType):
+        objet = code
+    else:
+        objet = _compiler_le_python(code, sourcemap, nom)
     try:
         exec(objet, nouvel_espace() if espace is None else espace)
     except Exception as exc:
-        lignes = lignes_du_programme(exc, sourcemap)
+        lignes = lignes_du_programme(exc, toutes)
         position = Position(lignes[-1], 0) if lignes else None
         message = traduire(exc)
         # Une récursion du programme remplit la pile de ses propres appels ; une
@@ -197,11 +211,11 @@ def executer_code(
         raise ErreurExecution(message, position) from exc
 
 
-def _compiler_le_python(code: str, sourcemap: SourceMap) -> CodeType:
+def _compiler_le_python(code: str, sourcemap: SourceMap, nom: str) -> CodeType:
     """`compile()`, avec un filet : les limites du parser évitent que CPython refuse
     le code généré, mais si cela arrive, c'est une erreur de compilation."""
     try:
-        return compiler_module(code, NOM_FICHIER)
+        return compiler_module(code, nom)
     except (SyntaxError, RecursionError) as exc:
         if isinstance(exc, SyntaxError) and not (exc.msg or "").startswith("too many"):
             raise  # un défaut du générateur, pas une limite : on veut le voir
@@ -211,22 +225,26 @@ def _compiler_le_python(code: str, sourcemap: SourceMap) -> CodeType:
         raise ErreursMultiples([ErreurSyntaxe(TROP_IMBRIQUE, position)]) from None
 
 
-def lignes_du_programme(exc: BaseException, sourcemap: SourceMap) -> list[int]:
+def lignes_du_programme(
+    exc: BaseException, cartes: Mapping[str, SourceMap]
+) -> list[int]:
     """Les lignes Upea des frames du programme dans le traceback de `exc`, de la plus
-    externe à la plus profonde (sans `extract_tb`, qui lirait 20 000 frames en détail
-    pour une récursion trop profonde)."""
+    externe à la plus profonde. Chaque frame est lue avec la carte de son fichier
+    (`cartes`) ; celles du prélude n'en ont pas. (Sans `extract_tb`, qui lirait
+    20 000 frames en détail pour une récursion trop profonde.)"""
     lignes: list[int] = []
     for frame, numero in traceback.walk_tb(exc.__traceback__):
-        if frame.f_code.co_filename == NOM_FICHIER and numero is not None:
-            ligne = sourcemap.ligne_source(numero)
+        carte = cartes.get(frame.f_code.co_filename)
+        if carte is not None and numero is not None:
+            ligne = carte.ligne_source(numero)
             if ligne is not None:
                 lignes.append(ligne)
     return lignes
 
 
-def ligne_fautive(exc: BaseException, sourcemap: SourceMap) -> int | None:
+def ligne_fautive(exc: BaseException, cartes: Mapping[str, SourceMap]) -> int | None:
     """La ligne Upea de la frame la plus profonde qui provient du programme."""
-    lignes = lignes_du_programme(exc, sourcemap)
+    lignes = lignes_du_programme(exc, cartes)
     return lignes[-1] if lignes else None
 
 
