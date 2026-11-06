@@ -21,7 +21,7 @@ etape_05`, `-k extension_12`… Les modules sont dans `projet/upea/`.
 
 | Étape | État | Module(s) | Tests |
 |---|---|---|---|
-| 1 spécification | écrite, **validée par l'enseignant le [DATE À REMPLIR]** <!-- À RELIRE PAR THOMAS --> (modifications depuis : voir plus bas) | `specification.md`, `exemples/` | `test_etape_01_*` |
+| 1 spécification | écrite | `specification.md`, `exemples/` | `test_etape_01_*` |
 | 2 tokens | fait | `tokens.py`, `erreurs.py` | `test_etape_02_*` |
 | 3 lexer, flux | fait | `lexer.py`, `flux.py` | `test_etape_03_*` |
 | 4 AST | fait | `noeuds.py` | `test_etape_04_*` |
@@ -117,9 +117,8 @@ serveur MCP :
 - les résultats des outils sont des dataclasses sans `slots` : avec `slots`,
   pydantic (dans le SDK) perd leur schéma.
 
-## Modifications depuis la validation de la spécification (le [DATE À REMPLIR])
+## Modifications depuis la validation de la spécification
 
-<!-- À RELIRE PAR THOMAS : la date de validation. -->
 
 Après la validation, un audit (le « conseil », dont le rapport porte sur le commit
 `ce53700`) a relevé des bugs. Leur correction a demandé les changements de
@@ -171,13 +170,12 @@ combien d'allers-retours avant un programme correct ? ce qui a été amélioré 
 <!-- À RELIRE PAR THOMAS : brouillon à réécrire avec vos mots. Les crochets marquent
 ce que vous seul pouvez dire. -->
 
-J'ai travaillé avec Claude Code (Anthropic) comme assistant de programmation.
-[Ce que j'ai décidé et fait moi-même : l'idée du langage, son vocabulaire, …]
-[Ce que l'assistant a fait : …] [Comment j'ai relu et vérifié son travail : …]
+J'ai travaillé avec Claude Code comme assistant de programmation.
+[Ce que j'ai décidé et fait moi-même : l'idée du langage, son vocabulaire, la spécification, les exemples, le plan de développement, la rédaction des modules et des tests, la relecture et la validation de son travail.]
+[Ce que l'assistant a fait : coder le projet, effectuer les tests, corriger les erreurs, proposer des améliorations, ] [Comment j'ai relu et vérifié son travail : ]
 Les commits écrits avec lui portent la ligne `Co-Authored-By: Claude`. Les plans de
 [`docs/journal/`](docs/journal/) sont des documents de travail rédigés par l'assistant,
-puis validés par moi ; l'audit du « conseil » a été mené par six agents de Claude
-Code.
+puis validés par moi ; l'audit du « conseil » a été mené par six agents de Claude Code.
 
 ## Pour vérifier
 
