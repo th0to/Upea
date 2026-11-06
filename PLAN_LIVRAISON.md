@@ -2,9 +2,15 @@
 
 État de départ : commit `5e64cfa`, branche `master`.
 
-> **Plan validé le 6 novembre 2026.** Décisions : 1a, 2a, 3a, 4a, 5a, 6a, 7a, 9a, 10a,
-> 11a, 12a, 13a. **Décision 8 en attente** : la réponse contient les deux options (8a
-> et 8b) ; les lots 3 et suivants attendent qu'elle soit tranchée.
+> **Plan validé le 6 novembre 2026.** Décisions : 1a, 2a, 3a, 4a, 5a, 6a, 7a, **8b**,
+> 9a, 10a, 11a, 12a, 13a.
+>
+> **8b : le gel du code est levé pour un lot unique, le lot 2b**, placé avant les
+> docstrings (dont la discussion de sécurité dépend) : outils `tokenize` et `parse`,
+> prompt `corriger_programme`, paramètre `delai` d'`executer` (au plus 5 s, refusé
+> au-delà), environnement réduit de l'enfant (`PYTHONPATH`, `PYTHONUTF8`, et ce qui est
+> indispensable sous Windows, vérifié par l'essai). Tests d'abord, un commit. Les
+> écarts qui restent vont dans la table de `NOTES.md`.
 >
 > Précisions reçues :
 > - 2a : en tête du rapport copié, « État au commit ce53700. Corrigé depuis : M1 à M6,
@@ -196,13 +202,17 @@ compte pas.
 
 **Trois pièges, vérifiés, qui fixent ce qu'il ne faut pas toucher :**
 
-1. **La docstring d'une dataclass rendue par un outil MCP part dans le `outputSchema`.**
-   Un script jetable qui appelle `client.list_tools()` montre, pour les quatre outils, `$defs →
-   Diagnostic → description : "Une erreur ou un avertissement ; …"`. Ajouter une
-   docstring à `Verification`, `Transpilation`, `Formatage` (`atelier.py:51-69`) ou
-   `Execution` (`bac_a_sable.py:56`) changerait ce que le serveur annonce. Aucun test ne
-   le verrait : `test_extension_18_mcp.py:222` vérifie seulement que le schéma existe.
-   Ces quatre classes restent sans docstring, et sont décrites dans `docs/mcp.md`.
+1. **La docstring d'une dataclass *imbriquée* dans un résultat d'outil MCP part dans
+   le `outputSchema`.** Un script jetable qui appelle `client.list_tools()` montre,
+   pour les quatre outils, `$defs → Diagnostic → description : "Une erreur ou un
+   avertissement ; …"`. Aucun test ne le verrait : `test_extension_18_mcp.py:222`
+   vérifie seulement que le schéma existe.
+   *Corrigé pendant le lot 2b* : la phase 1 en concluait que `Verification`,
+   `Transpilation`, `Formatage` et `Execution` ne devaient pas recevoir de docstring.
+   C'est faux pour ces classes **racines** : deux processus neufs, l'un sans et l'autre
+   avec une docstring posée sur les quatre avant la construction du serveur, donnent
+   des schémas identiques (`diff` vide). Elles peuvent donc en recevoir une. Le lot 3
+   le revérifie : il compare les schémas des outils avant et après.
 2. **La docstring d'un outil, d'une ressource ou d'un prompt est sa description**
    (`serveur_mcp.py:157`, `:286`, `:473`). Aucune n'est modifiée.
 3. **Les modules du prélude sont recopiés dans chaque fichier généré.** Une docstring

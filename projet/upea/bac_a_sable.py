@@ -180,17 +180,23 @@ def _memoire_depassee(
 
 
 def _environnement() -> dict[str, str]:
-    """L'environnement de l'enfant : le paquet `upea` importable, de l'UTF-8 partout,
-    et jamais de couleurs."""
-    environnement = dict(os.environ)
-    environnement.pop("FORCE_COLOR", None)
-    chemins = [str(RACINE), environnement.get("PYTHONPATH", "")]
-    return environnement | {
-        "PYTHONPATH": os.pathsep.join(filter(None, chemins)),
+    """L'environnement de l'enfant, réduit au nécessaire : le paquet `upea`
+    importable, de l'UTF-8 partout, et jamais de couleurs.
+
+    Rien n'est hérité du serveur : ses variables (un jeton d'API de l'hôte, par
+    exemple) n'atteignent pas le programme. L'enfant est lancé par le chemin absolu
+    de l'interpréteur (`sys.executable`) : il n'a pas besoin de `PATH`. Sous Windows,
+    `SYSTEMROOT` est gardé, comme le demande la documentation de `subprocess`.
+    """
+    environnement = {
+        "PYTHONPATH": str(RACINE),
         "PYTHONUTF8": "1",
         "PYTHONIOENCODING": "utf-8",
         "NO_COLOR": "1",
     }
+    if sys.platform == "win32" and "SYSTEMROOT" in os.environ:
+        environnement["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+    return environnement
 
 
 def _texte(octets: bytes) -> str:

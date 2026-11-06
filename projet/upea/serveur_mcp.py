@@ -78,6 +78,21 @@ AvecPrelude = Annotated[
         )
     ),
 ]
+#: Le délai le plus court qu'on puisse demander à `executer`. Le démarrage de Python
+#: en prend déjà une demi-seconde environ : un délai si court arrête presque tout.
+DELAI_MINIMAL = 0.1
+Delai = Annotated[
+    float,
+    Field(
+        ge=DELAI_MINIMAL,
+        le=bac_a_sable.DELAI,
+        description=(
+            "La durée maximale de l'exécution, en secondes, démarrage de Python "
+            f"compris (une demi-seconde environ) : de {DELAI_MINIMAL:g} à "
+            f"{bac_a_sable.DELAI:g}."
+        ),
+    ),
+]
 
 #: Ni effet de bord, ni accès au monde extérieur : le client peut appeler sans crainte.
 SANS_EFFET = ToolAnnotations(
@@ -91,7 +106,8 @@ première classe. Il est transpilé en Python 3.12. Tu ne le connais pas encore 
 avant d'écrire du code Upea, lis la ressource upea://specification, et consulte \
 upea://predefinies et les exemples (upea://exemples). Puis écris le programme, \
 vérifie-le avec l'outil verifier, corrige-le jusqu'à ce qu'il n'ait plus d'erreur, \
-et exécute-le avec executer."""
+et exécute-le avec executer. Pour comprendre une erreur lexicale ou de syntaxe, \
+tokenize montre les tokens du programme, et parse son arbre syntaxique."""
 
 
 @asynccontextmanager
@@ -117,7 +133,8 @@ def construire_serveur(
 
     Construit à la demande, pas à l'import : le SDK configure la journalisation dès
     la création du serveur. `proteger_stdout` est pour le service en stdio, `delai`
-    celui de chaque exécution (attente de son tour non comprise).
+    le plus long que puisse demander chaque exécution (attente de son tour non
+    comprise) : les tests le raccourcissent.
     """
     serveur = MCPServer(
         NOM,
@@ -164,6 +181,51 @@ def _outil[F: Callable[..., object]](
 
 
 def _outils_sans_execution(serveur: MCPServer[None]) -> None:
+    @_outil(serveur, "Découper un programme Upea en tokens")
+    def tokenize(source: Source) -> atelier.Decoupage:
+        """Découpe un programme Upea en tokens (l'analyse lexicale seule), sans
+        l'exécuter.
+
+        Quand s'en servir : pour comprendre une erreur lexicale, ou pour voir comment
+        le compilateur lit un passage (un mot-clé, un nombre, un texte). Pour
+        vérifier un programme, verifier suffit.
+
+        Résultat :
+        - `valide` : vrai s'il n'y a aucune erreur lexicale ;
+        - `jetons` : des objets {sorte, texte, ligne, colonne}, dans l'ordre du
+          source ; sorte est le nom du token (TUU, IDENT, ENTIER, TEXTE,
+          POINT_VIRGULE…), et le dernier est toujours FIN. Le texte d'un TEXTE est sa
+          valeur, sans guillemets. Sur une erreur lexicale, ce sont les tokens lus
+          avant elle ;
+        - `diagnostics` et `rapport` comme pour verifier.
+
+        Les espaces et les commentaires ne donnent pas de token.
+        """
+        _limiter(source)
+        return atelier.decouper(source)
+
+    @_outil(serveur, "Voir l'arbre syntaxique d'un programme Upea")
+    def parse(source: Source) -> atelier.AnalyseSyntaxique:
+        """Analyse la syntaxe d'un programme Upea et rend son arbre syntaxique, sans
+        analyser les noms ni les types, et sans l'exécuter.
+
+        Quand s'en servir : pour comprendre comment le compilateur lit une
+        construction (la priorité des opérateurs, par exemple), ou pour voir toutes
+        les erreurs de syntaxe d'un coup. Un programme accepté par parse peut encore
+        être refusé par verifier (un nom non déclaré, un type faux) : c'est verifier
+        qu'il faut appeler avant executer.
+
+        Résultat :
+        - `valide` : vrai s'il n'y a aucune erreur lexicale ni de syntaxe ;
+        - `arbre` : l'arbre (null s'il y a des erreurs). Chaque nœud est un objet
+          dont la clé `type` nomme la construction (Programme, Declaration, Affiche,
+          Binaire, Variable…), suivie de ses champs, puis de `ligne` et `colonne`
+          quand elles sont connues ;
+        - `diagnostics` et `rapport` comme pour verifier.
+        """
+        _limiter(source)
+        return atelier.analyser_syntaxe(source)
+
     @_outil(serveur, "Vérifier un programme Upea")
     def verifier(source: Source, types: Types = True) -> atelier.Verification:
         """Vérifie un programme Upea sans l'exécuter : analyse lexicale, syntaxique,
@@ -230,23 +292,28 @@ def _outils_sans_execution(serveur: MCPServer[None]) -> None:
         return atelier.transpiler(source, backend, avec_prelude=avec_prelude)
 
 
-def _outil_executer(serveur: MCPServer[None], delai: float) -> None:
+def _outil_executer(serveur: MCPServer[None], delai_maximal: float) -> None:
     # Le SDK appelle un outil synchrone dans un fil de travail : un sémaphore de
     # fils suffit. On attend son tour avant de lancer l'enfant, et le délai ne
-    # court qu'à partir de son lancement.
+    # court qu'à partir de son lancement. `delai_maximal` est celui du serveur : le
+    # délai demandé ne le dépasse jamais.
     places = threading.BoundedSemaphore(EXECUTIONS_SIMULTANEES)
 
     @_outil(serveur, "Exécuter un programme Upea")
     def executer(
-        source: Source, types: Types = True, backend: Backend = "python"
+        source: Source,
+        types: Types = True,
+        backend: Backend = "python",
+        delai: Delai = bac_a_sable.DELAI,
     ) -> bac_a_sable.Execution:
         """Exécute un programme Upea et rend ce qu'il a affiché.
 
         Quand s'en servir : une fois le programme passé par verifier sans erreur,
         pour voir sa sortie et la comparer à ce qui est attendu. Le programme tourne
-        dans un processus séparé, avec au plus 5 s (démarrage compris), 512 Mo de
-        mémoire, et 64 Kio de sortie gardés. Un programme Upea ne lit ni clavier,
-        ni fichier, ni réseau : il ne peut qu'afficher (faaite).
+        dans un processus séparé, avec au plus `delai` secondes (5 s par défaut, et
+        5 s au plus ; démarrage compris), 512 Mo de mémoire, et 64 Kio de sortie
+        gardés. Un programme Upea ne lit ni clavier, ni fichier, ni réseau : il ne
+        peut qu'afficher (faaite).
 
         Résultat :
         - `statut` : "succes", "erreur_compilation" ou "erreur_execution" ;
@@ -270,7 +337,10 @@ def _outil_executer(serveur: MCPServer[None], delai: float) -> None:
         with places:
             try:
                 return bac_a_sable.executer(
-                    source, types=types, backend=backend, delai=delai
+                    source,
+                    types=types,
+                    backend=backend,
+                    delai=min(delai, delai_maximal),
                 )
             except bac_a_sable.DelaiDepasse as arret:
                 raise ToolError(_delai_depasse(arret)) from None
@@ -420,6 +490,18 @@ Tache = Annotated[
     ),
 ]
 CodePython = Annotated[str, Field(description="Le programme Python complet.")]
+SourceACorriger = Annotated[
+    str, Field(description="Le programme Upea à corriger, en entier.")
+]
+ErreursRecues = Annotated[
+    str,
+    Field(
+        description=(
+            "Les erreurs reçues, telles quelles : le rapport de verifier ou "
+            "d'executer, ou ce qui ne va pas dans la sortie."
+        )
+    ),
+]
 
 #: La démarche commune aux prompts : apprendre, écrire, vérifier, exécuter.
 DEMARCHE = """\
@@ -492,6 +574,23 @@ def _prompts(serveur: MCPServer[None]) -> None:
             "Traduis ce programme Python en Upea, en gardant ce qu'il affiche :\n\n"
             f"```python\n{code}{fin}```\n\n{DEMARCHE}\n{PIEGES_DE_PYTHON}\n"
             "À l'étape 4, compare la sortie à celle du programme Python."
+        )
+
+    @prompt("Corriger un programme Upea")
+    def corriger_programme(source: SourceACorriger, erreurs: ErreursRecues) -> str:
+        """Corriger un programme Upea d'après les erreurs reçues, en apprenant le
+        langage dans la spécification, puis en le vérifiant (verifier) et en
+        l'exécutant (executer) jusqu'à ce qu'il soit juste."""
+        fin = "" if source.endswith("\n") else "\n"
+        fin_erreurs = "" if erreurs.endswith("\n") else "\n"
+        return (
+            "Corrige ce programme Upea :\n\n"
+            f"```upea\n{source}{fin}```\n\n"
+            f"Voici les erreurs reçues :\n\n```text\n{erreurs}{fin_erreurs}```\n\n"
+            "Chaque erreur donne sa ligne et, quand elle est connue, sa colonne. "
+            "Corrige-les toutes, sans changer ce que le programme doit faire. À "
+            "l'étape 2, écris le programme corrigé en entier.\n\n"
+            f"{DEMARCHE}"
         )
 
 

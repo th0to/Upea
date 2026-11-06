@@ -1,5 +1,5 @@
-"""L'atelier (extension 18) : vérifier, transpiler et formater un source pour un outil
-extérieur, le serveur MCP, sans dépendre de lui.
+"""L'atelier (extension 18) : découper, analyser, vérifier, transpiler et formater un
+source pour un outil extérieur, le serveur MCP, sans dépendre de lui.
 
 Une erreur du programme n'est pas une panne : c'est un **résultat**, des diagnostics
 structurés que l'appelant lit pour corriger. Tout passe par la façade `compilateur`.
@@ -8,7 +8,7 @@ structurés que l'appelant lit pour corriger. Tout passe par la façade `compila
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from typing import Literal
 
 from . import compilateur, erreurs
@@ -45,6 +45,37 @@ class Diagnostic:
     ligne: int | None
     colonne: int | None
     message: str
+
+
+@dataclass(frozen=True)
+class Jeton:
+    """Un token : sa sorte (`TUU`, `IDENT`, `ENTIER`…), son texte et sa position. Le
+    texte d'un token `TEXTE` est sa valeur, sans guillemets ni échappements."""
+
+    sorte: str
+    texte: str
+    ligne: int
+    colonne: int
+
+
+#: Une valeur JSON : l'arbre syntaxique n'a pas de forme fixe.
+type JSON = dict[str, JSON] | list[JSON] | str | int | float | bool | None
+
+
+@dataclass(frozen=True)
+class Decoupage:
+    valide: bool  # aucune erreur lexicale
+    jetons: tuple[Jeton, ...]  # jusqu'au token FIN, ou jusqu'à l'erreur
+    diagnostics: tuple[Diagnostic, ...]
+    rapport: str
+
+
+@dataclass(frozen=True)
+class AnalyseSyntaxique:
+    valide: bool  # aucune erreur lexicale ni de syntaxe
+    arbre: JSON | None  # None si le programme a des erreurs
+    diagnostics: tuple[Diagnostic, ...]
+    rapport: str
 
 
 @dataclass(frozen=True)
@@ -103,6 +134,60 @@ def rapport(liste: Iterable[ErreurUpea], source: str) -> str:
     """Les erreurs mises en forme comme par la CLI, ou « aucune erreur »."""
     blocs = [erreurs.formater(e, source, FICHIER) for e in liste]
     return "\n".join(blocs) if blocs else "aucune erreur"
+
+
+def decouper(source: str) -> Decoupage:
+    """Les tokens de `source` ; sur une erreur lexicale, ceux lus avant elle (le
+    lexer est un générateur : ils sont déjà là)."""
+    jetons: list[Jeton] = []
+    try:
+        for token in compilateur.tokens(source):
+            position = token.position
+            jetons.append(
+                Jeton(token.kind.name, token.lexeme, position.ligne, position.colonne)
+            )
+    except ErreurLexicale as erreur:
+        return Decoupage(
+            False, tuple(jetons), diagnostics(erreur), rapport([erreur], source)
+        )
+    return Decoupage(True, tuple(jetons), (), "aucune erreur")
+
+
+def noeud_json(valeur: object) -> JSON:
+    """Un nœud de l'arbre syntaxique, ou la valeur d'un de ses champs, en JSON.
+
+    Chaque nœud devient un objet : la clé `type` donne sa classe (`Variable("x")` et
+    `Texte("x")` ont les mêmes champs), puis viennent ses champs, puis sa `ligne` et
+    sa `colonne` quand elles sont connues. Lève `TypeError` sur une valeur qui n'a
+    rien à faire dans un arbre.
+    """
+    match valeur:
+        case None | bool() | int() | float() | str():
+            return valeur
+        case tuple():
+            return [noeud_json(element) for element in valeur]
+    if not is_dataclass(valeur) or isinstance(valeur, type):
+        raise TypeError(f"valeur inattendue dans un arbre syntaxique : {valeur!r}")
+    objet: dict[str, JSON] = {"type": type(valeur).__name__}
+    for champ in fields(valeur):
+        if champ.name != "pos":
+            objet[champ.name] = noeud_json(getattr(valeur, champ.name))
+    match getattr(valeur, "pos", None):
+        case Position(ligne=ligne, colonne=colonne) if ligne >= 1:
+            objet["ligne"], objet["colonne"] = ligne, colonne
+    return objet
+
+
+def analyser_syntaxe(source: str) -> AnalyseSyntaxique:
+    """L'arbre syntaxique de `source`, en JSON. Seule la syntaxe est analysée : toutes
+    les erreurs de syntaxe sont signalées, mais aucune erreur de nom ni de type."""
+    try:
+        programme = compilateur.analyser_syntaxe(source)
+    except ErreursMultiples as echec:
+        return AnalyseSyntaxique(
+            False, None, diagnostics(echec), rapport([echec], source)
+        )
+    return AnalyseSyntaxique(True, noeud_json(programme), (), "aucune erreur")
 
 
 def verifier(source: str, *, types: bool = True) -> Verification:

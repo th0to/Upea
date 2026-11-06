@@ -214,8 +214,9 @@ def test_un_print_egare_ne_va_pas_sur_stdout(tmp_path: Path) -> None:
 @pytest.mark.anyio
 async def test_les_outils_sont_decrits(client: Client) -> None:
     outils = {outil.name: outil for outil in (await client.list_tools()).tools}
-    assert {"verifier", "formater", "transpiler"} <= set(outils)
-    for nom in ("verifier", "formater", "transpiler"):
+    sans_execution = ("tokenize", "parse", "verifier", "formater", "transpiler")
+    assert set(sans_execution) <= set(outils)
+    for nom in sans_execution:
         outil = outils[nom]
         assert outil.description and len(outil.description) > 200, nom
         assert "\n    " not in outil.description, nom  # sans l'indentation du code
@@ -280,7 +281,55 @@ async def test_transpiler(client: Client) -> None:
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("outil", ["verifier", "formater", "transpiler"])
+async def test_tokenize_rend_les_tokens(client: Client) -> None:
+    resultat = await client.call_tool("tokenize", {"source": "tuu x = 3 @ 2;"})
+    assert not resultat.is_error  # une erreur lexicale est un résultat
+    attendu = asdict(atelier.decouper("tuu x = 3 @ 2;"))
+    assert resultat.structured_content == en_json(attendu)
+    assert resultat.structured_content["jetons"][1] == {
+        "sorte": "IDENT",
+        "texte": "x",
+        "ligne": 1,
+        "colonne": 5,
+    }
+    assert not resultat.structured_content["valide"]
+
+
+@pytest.mark.anyio
+async def test_parse_rend_l_arbre(client: Client) -> None:
+    resultat = await client.call_tool("parse", {"source": "faaite 1 + x;"})
+    assert not resultat.is_error
+    assert resultat.structured_content == en_json(
+        asdict(atelier.analyser_syntaxe("faaite 1 + x;"))
+    )
+    [affiche] = resultat.structured_content["arbre"]["instructions"]
+    assert affiche["valeurs"][0]["type"] == "Binaire"
+
+
+@pytest.mark.anyio
+async def test_parse_accepte_ce_que_verifier_refuse(client: Client) -> None:
+    """`parse` ne fait que l'analyse syntaxique : un nom non déclaré y passe."""
+    analyse = await client.call_tool("parse", {"source": "faaite y;"})
+    verification = await client.call_tool("verifier", {"source": "faaite y;"})
+    assert analyse.structured_content is not None
+    assert verification.structured_content is not None
+    assert analyse.structured_content["valide"]
+    assert not verification.structured_content["valide"]
+
+
+@pytest.mark.anyio
+async def test_parse_rend_toutes_les_erreurs_de_syntaxe(client: Client) -> None:
+    resultat = await client.call_tool("parse", {"source": "tuu = 1;\nfaaite (2;\n"})
+    assert not resultat.is_error
+    assert resultat.structured_content is not None
+    assert resultat.structured_content["arbre"] is None
+    assert [d["ligne"] for d in resultat.structured_content["diagnostics"]] == [1, 2]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "outil", ["tokenize", "parse", "verifier", "formater", "transpiler"]
+)
 async def test_un_source_trop_long_est_refuse(client: Client, outil: str) -> None:
     source = "// " + "é" * (TAILLE_MAX_SOURCE // 2) + "\nfaaite 1;\n"
     resultat = await client.call_tool(outil, {"source": source})
@@ -305,7 +354,57 @@ async def test_executer_est_decrit(client: Client) -> None:
     outil = outils["executer"]
     assert outil.description and "5 s" in outil.description
     assert outil.output_schema is not None
-    assert set(outil.input_schema["properties"]) == {"source", "types", "backend"}
+    proprietes = outil.input_schema["properties"]
+    assert set(proprietes) == {"source", "types", "backend", "delai"}
+    assert proprietes["delai"]["maximum"] == 5
+    assert proprietes["delai"]["default"] == 5
+    assert outil.input_schema["required"] == ["source"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("delai", [0, -1, 5.5, 60])
+async def test_un_delai_hors_des_bornes_est_refuse(
+    client: Client, delai: float
+) -> None:
+    resultat = await client.call_tool(
+        "executer", {"source": "faaite 1;", "delai": delai}
+    )
+    assert resultat.is_error  # refusé par le schéma, sans rien exécuter
+
+
+@pytest.mark.anyio
+async def test_executer_avec_un_delai_plus_court(client: Client) -> None:
+    source = 'faaite "début";\ntamau tia { }\n'
+    resultat = await client.call_tool("executer", {"source": source, "delai": 1})
+    assert resultat.is_error
+    assert "délai de 1 s dépassé" in texte(resultat)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("du_serveur", "demande", "applique"),
+    [(5.0, None, 5.0), (5.0, 2.0, 2.0), (0.5, 2.0, 0.5), (0.5, None, 0.5)],
+)
+async def test_le_delai_demande_ne_depasse_pas_celui_du_serveur(
+    monkeypatch: pytest.MonkeyPatch,
+    du_serveur: float,
+    demande: float | None,
+    applique: float,
+) -> None:
+    delais: list[float] = []
+
+    def noter_le_delai(source: str, **options: Any) -> Execution:
+        delais.append(options["delai"])
+        return Execution("succes", 0, "", False, 0, (), "aucune erreur")
+
+    monkeypatch.setattr(bac_a_sable, "executer", noter_le_delai)
+    arguments: dict[str, object] = {"source": "faaite 1;"}
+    if demande is not None:
+        arguments["delai"] = demande
+    async with Client(construire_serveur(delai=du_serveur)) as client:
+        resultat = await client.call_tool("executer", arguments)
+    assert not resultat.is_error
+    assert delais == [applique]
 
 
 @pytest.mark.anyio
@@ -495,18 +594,20 @@ async def test_la_ressource_montre_amui_sur_un_graphe(client: Client) -> None:
 @pytest.mark.anyio
 async def test_les_prompts_sont_decrits(client: Client) -> None:
     prompts = {p.name: p for p in (await client.list_prompts()).prompts}
-    assert set(prompts) == {"ecrire_programme", "traduire_depuis_python"}
-    for nom, argument in [
-        ("ecrire_programme", "tache"),
-        ("traduire_depuis_python", "code"),
-    ]:
+    attendus = {
+        "ecrire_programme": ["tache"],
+        "traduire_depuis_python": ["code"],
+        "corriger_programme": ["source", "erreurs"],
+    }
+    assert set(prompts) == set(attendus)
+    for nom, arguments in attendus.items():
         prompt = prompts[nom]
         assert prompt.title and prompt.description, nom
         assert "\n    " not in prompt.description, nom
         assert prompt.arguments is not None
-        [decrit] = prompt.arguments
-        assert decrit.name == argument
-        assert decrit.required and decrit.description
+        assert [a.name for a in prompt.arguments] == arguments, nom
+        for decrit in prompt.arguments:
+            assert decrit.required and decrit.description, (nom, decrit.name)
 
 
 async def message_du_prompt(client: Client, nom: str, arguments: dict[str, str]) -> str:
@@ -550,6 +651,21 @@ async def test_traduire_depuis_python(client: Client) -> None:
         "a < b ma b < c",
     ):
         assert attendu in texte_du_prompt
+
+
+@pytest.mark.anyio
+async def test_corriger_programme(client: Client) -> None:
+    """Le prompt contient le source et les erreurs reçus, et la démarche."""
+    source = "tuu x = 1\nfaaite x;\n"
+    erreurs = atelier.verifier(source).rapport
+    texte_du_prompt = await message_du_prompt(
+        client, "corriger_programme", {"source": source, "erreurs": erreurs}
+    )
+    assert f"```upea\n{source}```" in texte_du_prompt
+    assert erreurs in texte_du_prompt
+    for attendu in ("upea://specification", "verifier", "executer"):
+        assert attendu in texte_du_prompt
+    assert texte_du_prompt.index("verifier") < texte_du_prompt.index("executer")
 
 
 # --- De bout en bout : le vrai serveur, en stdio --------------------------------------
@@ -601,7 +717,14 @@ async def test_de_bout_en_bout_avec_le_client_du_sdk() -> None:
     async with Client(parametres) as client:
         assert client.protocol_version == "2026-07-28"
         outils = {outil.name for outil in (await client.list_tools()).tools}
-        assert outils == {"verifier", "formater", "transpiler", "executer"}
+        assert outils == {
+            "tokenize",
+            "parse",
+            "verifier",
+            "formater",
+            "transpiler",
+            "executer",
+        }
         resultat = await client.call_tool("executer", {"source": "faaite 6 * 7;"})
         assert resultat.structured_content is not None
         assert resultat.structured_content["sortie"] == "42\n"

@@ -88,6 +88,12 @@ def compiler(source: str, *, types: bool = True) -> Compilation:
         return Compilation(programme, analyser(programme, types=types))
 
 
+def analyser_syntaxe(source: str) -> Programme:
+    """L'arbre syntaxique seul, sans analyse sémantique. Lève `ErreursMultiples`."""
+    with _sans_debordement():
+        return parse(source)
+
+
 def transpiler(
     source: str,
     backend: str = "python",

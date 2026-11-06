@@ -158,3 +158,40 @@ def test_un_enfant_en_panne(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_un_backend_qui_ne_s_execute_pas() -> None:
     with pytest.raises(ValueError, match="formateur"):
         executer('faaite "x";', backend="formateur")
+
+
+# --- L'environnement de l'enfant ------------------------------------------------------
+
+
+def test_l_enfant_ne_recoit_que_l_environnement_indispensable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UPEA_SECRET", "jeton-du-serveur")
+    environnement = bac_a_sable._environnement()
+    assert "UPEA_SECRET" not in environnement
+    assert set(environnement) <= {
+        "PYTHONPATH",
+        "PYTHONUTF8",
+        "PYTHONIOENCODING",
+        "NO_COLOR",
+        "SYSTEMROOT",  # sous Windows seulement
+    }
+
+
+def test_l_enfant_ne_voit_pas_les_variables_du_serveur(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un secret du serveur (un jeton d'API de l'hôte, par exemple) n'arrive pas au
+    processus qui exécute le programme : on remplace l'enfant par un script qui
+    montre ce qu'il voit, et on passe par `executer` comme le serveur."""
+    monkeypatch.setenv("UPEA_SECRET", "jeton-du-serveur")
+    montrer = (
+        "import os, sys; sys.stderr.write(os.environ.get('UPEA_SECRET', 'absent'))"
+    )
+    monkeypatch.setattr(
+        bac_a_sable, "COMMANDE", [sys.executable, "-c", montrer + "; sys.exit(7)"]
+    )
+    with pytest.raises(EnfantEnPanne) as panne:
+        executer('faaite "x";')
+    assert "absent" in str(panne.value)
+    assert "jeton-du-serveur" not in str(panne.value)
