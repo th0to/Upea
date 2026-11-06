@@ -122,15 +122,24 @@ SANS_EFFET = ToolAnnotations(
     read_only_hint=True, idempotent_hint=True, open_world_hint=False
 )
 
-INSTRUCTIONS = """\
+INSTRUCTIONS = (
+    aide.PRESENTATION
+    + """
+
 Upea est un petit langage impératif aux mots-clés tahitiens (tuu, ohipa, ahani, \
 tataitahi, faaite…), où les arbres (tumu) et les graphes (upea) sont des valeurs de \
-première classe. Il est transpilé en Python 3.12. Tu ne le connais pas encore : \
-avant d'écrire du code Upea, lis la ressource upea://specification, et consulte \
-upea://predefinies et les exemples (upea://exemples). Puis écris le programme, \
-vérifie-le avec l'outil verifier, corrige-le jusqu'à ce qu'il n'ait plus d'erreur, \
-et exécute-le avec executer. Pour comprendre une erreur lexicale ou de syntaxe, \
-tokenize montre les tokens du programme, et parse son arbre syntaxique."""
+première classe. Ne devine pas sa syntaxe : appelle l'outil aide avec le sujet \
+"apercu" (une page), puis, au besoin, exemples et aide("predefinies") ou \
+aide("specification"). Écris ensuite le programme, vérifie-le avec l'outil verifier, \
+corrige-le jusqu'à ce qu'il n'ait plus d'erreur, et exécute-le avec executer. Pour \
+comprendre une erreur lexicale ou de syntaxe, tokenize montre les tokens du \
+programme, et parse son arbre syntaxique. Un programme Upea ne lit ni clavier, ni \
+fichier, ni réseau.
+
+Les clients qui affichent les ressources trouvent aussi la spécification \
+(upea://specification), les fonctions prédéfinies (upea://predefinies) et les \
+exemples (upea://exemples)."""
+)
 
 
 @asynccontextmanager
@@ -199,7 +208,11 @@ def _outil[F: Callable[..., object]](
     `nom` seulement quand ce n'est pas celui de la fonction."""
 
     def enregistrer(fonction: F) -> F:
-        description = inspect.cleandoc(fonction.__doc__ or "")
+        # La même phrase ouvre chaque description : c'est le seul texte sûr d'arriver
+        # jusqu'à une IA, dont le client peut ne transmettre que les outils.
+        description = (
+            f"{aide.PRESENTATION}\n\n{inspect.cleandoc(fonction.__doc__ or '')}"
+        )
         decorer = serveur.tool(
             name=nom, title=titre, description=description, annotations=annotations
         )
@@ -537,7 +550,8 @@ sa syntaxe. Procède ainsi :
 
 1. Lis la ressource upea://specification en entier. Consulte upea://predefinies \
 pour les fonctions disponibles, et un exemple proche dans upea://exemples (chacun \
-avec sa sortie exacte).
+avec sa sortie exacte). Si tu n'as accès qu'aux outils, appelle aide("apercu"), puis \
+exemples et aide("predefinies").
 2. Écris le programme complet.
 3. Passe-le à l'outil verifier. Tant que `valide` est faux, corrige chaque erreur \
 à la ligne et à la colonne indiquées, puis vérifie de nouveau. Tiens compte aussi \
