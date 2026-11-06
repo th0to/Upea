@@ -138,6 +138,14 @@ def executer_arbre(source: str, *, types: bool = True) -> None:
     )
 
 
+def commentaires(source: str) -> int:
+    """Le nombre de commentaires de `source`, que le formateur perd."""
+    positions: list[Position] = []
+    for _ in tokenize(source, positions):
+        pass
+    return len(positions)
+
+
 def tokens(source: str) -> Iterator[Token]:
     """Les tokens de source (pour le REPL et les outils)."""
     return tokenize(source)

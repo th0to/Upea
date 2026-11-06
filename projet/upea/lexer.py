@@ -32,12 +32,17 @@ def _est_chiffre(source: str, i: int) -> bool:
     return i < len(source) and source[i].isdigit() and source[i].isascii()
 
 
-def tokenize(source: str) -> Iterator[Token]:
+def tokenize(
+    source: str, commentaires: list[Position] | None = None
+) -> Iterator[Token]:
     """Découpe `source` en tokens, le dernier étant toujours `FIN`.
 
     Lève `ErreurLexicale` (avec la position fautive) sur un caractère inconnu,
     un texte ou un commentaire non terminé, un échappement invalide, un nombre
     ou un identifiant mal formé.
+
+    Si `commentaires` est donnée, la position de chaque commentaire sauté y est
+    ajoutée (le formateur les perd : `fmt --ecrire` dit combien).
     """
     # Une marque d'ordre des octets (BOM) en tête, laissée par certains éditeurs,
     # est ignorée ; les colonnes de la première ligne ne la comptent pas.
@@ -64,11 +69,15 @@ def tokenize(source: str) -> Iterator[Token]:
 
         # Commentaires
         if source.startswith("//", i):
+            if commentaires is not None:
+                commentaires.append(position(i))
             while i < n and source[i] != "\n":
                 i += 1
             continue
         if source.startswith("/*", i):
             ouverture = position(i)
+            if commentaires is not None:
+                commentaires.append(ouverture)
             fin = source.find("*/", i + 2)
             if fin < 0:
                 raise ErreurLexicale("commentaire /* jamais refermé", ouverture)

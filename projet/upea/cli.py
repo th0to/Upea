@@ -11,6 +11,7 @@ from pathlib import Path
 from .compilateur import (
     BACKENDS,
     choisir_backend,
+    commentaires,
     compiler,
     executer,
     mettre_en_forme,
@@ -147,6 +148,9 @@ def commande_fmt(args: argparse.Namespace) -> int:
         return ERREUR_COMPILATION
     if args.ecrire:
         Path(args.fichier).write_text(resultat, encoding="utf-8")
+        if perdus := commentaires(source):
+            pluriel = "s" if perdus > 1 else ""
+            _erreur(f"upea : {perdus} commentaire{pluriel} perdu{pluriel}")
     else:
         sys.stdout.write(resultat)
     return OK
