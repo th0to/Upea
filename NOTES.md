@@ -38,7 +38,7 @@ etape_05`, `-k extension_12`… Les modules sont dans `projet/upea/`.
 | 15 algorithmes | fait : parcours, hauteur, diamètre, ancêtre commun… sur toutes les sortes d'arbres ; Dijkstra, Bellman-Ford, Floyd-Warshall, Kahn, Tarjan, biparti, Prim, Kruskal, Edmonds-Karp | `execution/vues.py`, `algorithmes_arbres.py`, `algorithmes_graphes.py` | `test_extension_15_*` |
 | 16 affichage | fait : `faaite` d'une structure seule la dessine (arbres binaires de haut en bas, `tumu` et arbres B en retrait, graphes en liste d'adjacence), `matrice`, couleurs au terminal, export `dot` (Graphviz) et `mermaid`, nœud seul dans un littéral `upea` | `execution/dessins.py`, `exports.py` | `test_extension_16_*` |
 | 17 propriétés | fait (`hypothesis`) : formater est idempotent et garde le sens, relire `parau` redonne une valeur égale, les deux backends font la même chose, sur des programmes et des valeurs tirés au hasard | `tests/generateurs.py` | `test_extension_17_*` |
-| 18 serveur MCP | fait (le [plan](docs/journal/PLAN_MCP.md), et le branchement dans le [README](README.md)) : `python -m upea mcp` en stdio (SDK `mcp` 2.x, facultatif ; sans lui, un message et le code 2). Outils `tokenize`, `parse`, `verifier`, `formater`, `transpiler` (diagnostics structurés : sorte, ligne, colonne, message) et `executer` (sous-processus : 5 s par défaut et au plus, 64 Kio de sortie, 512 Mo de mémoire, deux exécutions à la fois, environnement réduit) ; ressources `upea://specification`, `upea://exemples` (chacun avec sa sortie), `upea://predefinies` (signatures calculées à partir des patrons de typage : `pihai(upea[T], T) -> tapura[T]`) ; prompts `ecrire_programme`, `corriger_programme`, `traduire_depuis_python`. Testé en mémoire et de bout en bout en stdio | `serveur_mcp.py`, `atelier.py`, `bac_a_sable.py`, `predefinies.py`, `cli.py` | `test_extension_18_*` |
+| 18 serveur MCP | fait (le [plan](docs/journal/PLAN_MCP.md), et le branchement dans le [README](README.md)) : `python -m upea mcp` en stdio (SDK `mcp` 2.x, facultatif ; sans lui, un message et le code 2). Outils `tokenize`, `parse`, `verifier`, `formater`, `transpiler` (diagnostics structurés : sorte, ligne, colonne, message) et `executer` (sous-processus : 5 s par défaut et au plus, 64 Kio de sortie, 512 Mo de mémoire, deux exécutions à la fois, environnement réduit) ; ressources `upea://specification`, `upea://exemples` (chacun avec sa sortie), `upea://predefinies` (signatures calculées à partir des patrons de typage : `pihai(upea[T], T) -> tapura[T]`) ; prompts `ecrire_programme`, `corriger_programme`, `traduire_depuis_python`. Testé en mémoire et de bout en bout en stdio. **Suite, après la session 1 de l'exercice final** (le [plan](PLAN_AIDE.md), le [journal](docs/journal/exercice-final/index.md)) : huit outils, avec `aide(sujet, section)` et `exemples(nom)`, que le modèle appelle de lui-même (seuls les outils le sont : une ressource est choisie par l'application, un prompt par l'utilisateur) ; la même phrase en tête des huit descriptions et des instructions ; des conseils dans les messages d'erreur quand un mot est d'un autre langage (`si` → `ahani`, `compteur = 0;` → déclarez-la d'abord) ; deux pages de `docs/` ([aide-mémoire](docs/aide-memoire.md), [de Python à Upea](docs/depuis-python.md)) générées par `aide.py` | `serveur_mcp.py`, `atelier.py`, `bac_a_sable.py`, `predefinies.py`, `cli.py`, `aide.py`, `compilateur.py` | `test_extension_18_*` (dont `_aide_*` et `_exercice_final`) |
 
 Les extensions 14 à 18 sont propres au projet : le cours propose les extensions 11 à
 13 (`langage/README.md`), puis le serveur MCP (`mcp/README.md`), numéroté ici 18.
@@ -60,7 +60,8 @@ tous.
 | 4 | dossier temporaire, environnement réduit, mémoire bornée, context manager qui tue le fils | aucun fichier : la requête passe par l'entrée standard du fils ; environnement réduit ; mémoire et temps CPU bornés (pas de plafond de mémoire sous macOS) ; `communicate` avec délai, puis `kill` | fait autrement |
 | 4 | la discussion de sécurité dans la docstring du module de bac à sable | la docstring de `bac_a_sable.py` | aucun |
 | 5 | ressources (spécification, exemples), refus de la traversée de chemin ; prompts `ecrire_programme`, `corriger_programme` | les mêmes, plus `upea://predefinies` et le prompt `traduire_depuis_python` | aucun |
-| 6 | point d'entrée testé en stdio ; `projet/mcp.exemple.json` testé ; scénario de l'exercice final écrit comme un test ; exercice réel | point d'entrée testé en stdio ; [`projet/mcp.exemple.json`](projet/mcp.exemple.json), testé ; pas de scénario scripté ; exercice réel : voir plus bas | le scénario scripté et l'exercice réel restent à faire |
+| 6 | point d'entrée testé en stdio ; `projet/mcp.exemple.json` testé ; scénario de l'exercice final écrit comme un test ; exercice réel | point d'entrée testé en stdio ; [`projet/mcp.exemple.json`](projet/mcp.exemple.json), testé ; scénario écrit comme un test, `test_extension_18_exercice_final.py` (un client en mémoire qui ne lit que les outils) ; exercice réel : la session 1 a eu lieu (échec, rapport conservé), la session 2 est préparée ([journal](docs/journal/exercice-final/index.md)) | **la session 2 reste à faire**, et les observations à rédiger par l'auteur |
+| — (ajout) | rien n'est demandé sur ce point | les outils `aide` et `exemples`, la phrase commune aux descriptions, les conseils dans les messages d'erreur, `docs/aide-memoire.md` et `docs/depuis-python.md` | ajout : né de l'échec de la session 1 ; le cours parle de ressources et de prompts, mais seuls les outils sont appelés par le modèle de lui-même |
 
 ## Choix à signaler
 
@@ -95,6 +96,15 @@ tous.
   (délai dépassé, source de plus de 100 Kio, backend inconnu, délai hors des bornes)
   sont des erreurs d'outil.
 
+- **Les conseils des messages d'erreur** : quand une erreur de syntaxe porte sur un mot
+  de Python, du français ou d'un autre langage (une table d'une cinquantaine de mots,
+  dans `aide.py`), le message garde son texte et ajoute un conseil (« 'si' n'est pas un
+  mot-clé d'Upea : écrivez 'ahani' »). Ce sont des messages, pas le langage : la
+  spécification n'a pas changé. Un nom que le programme déclare (`tuu si = 1;`) n'est
+  jamais accusé ; affecter un nom non déclaré propose de le déclarer. Une réserve : la
+  déclaration est reconnue par les tokens (un nom qui suit `tuu`, `mau`, `ohipa`,
+  `tataitahi`, ou qui est un paramètre), pas par la portée.
+
 ## Limites connues
 
 Les limites du langage sont dans la spécification (*Limites assumées*). Celles du
@@ -114,6 +124,12 @@ serveur MCP :
   l'étape 3. Le délai n'a pas été allongé ;
 - aucun plafond de mémoire sous macOS, qui n'applique pas `RLIMIT_AS` ;
 - l'environnement réduit de l'enfant n'a été essayé que sous Windows ;
+- les conseils des messages d'erreur ne couvrent que les mots de leur table, et ne
+  s'ajoutent qu'aux erreurs de syntaxe et de noms (pas aux erreurs de type, ni aux
+  erreurs lexicales) ;
+- `aide("specification")` rend un sommaire, pas le texte entier : une IA doit demander
+  `section="tout"` (44 Kio) si elle veut tout, et son client peut plafonner la taille
+  d'un résultat d'outil ;
 - les résultats des outils sont des dataclasses sans `slots` : avec `slots`,
   pydantic (dans le SDK) perd leur schéma.
 
@@ -163,7 +179,7 @@ observations demandées : l'IA lit-elle la spécification avant d'écrire ? quel
 erreurs fait-elle, et les messages de `verifier` lui suffisent-ils pour corriger ?
 combien d'allers-retours avant un programme correct ? ce qui a été amélioré ensuite. -->
 
-*En attente de la session réelle.*
+*Session 1 faite (une IA qui ne voyait que les outils a échoué : voir le [journal](docs/journal/exercice-final/index.md) et son rapport). Session 2 préparée, en attente.*
 
 ## Usage d'un assistant IA
 

@@ -40,5 +40,9 @@ aux agents. Les rapports intermédiaires et le débat intégral ne sont pas livr
 
 ## L'exercice final du projet MCP
 
-La trace de la session réelle, quand elle aura eu lieu, ira dans
-`docs/journal/exercice-final/` (voir [`NOTES.md`](../../NOTES.md)).
+Une première session, où une IA qui ne connaissait pas Upea a échoué à traduire un
+programme Python, a mené à une série de corrections (les outils `aide` et `exemples`,
+des conseils dans les messages d'erreur). Le [journal de l'exercice](exercice-final/index.md)
+la raconte, garde le [rapport de la session 1](exercice-final/session-1-rapport.md),
+prépare la session 2, et réserve la place des observations de l'auteur (voir aussi
+[`NOTES.md`](../../NOTES.md)).
