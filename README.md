@@ -11,7 +11,7 @@ l'avancement, étape par étape.
 
 ## Un exemple
 
-```
+```upea
 // Les îles atteignables depuis Tahiti, et le plus court trajet vers Bora Bora.
 tuu iles = upea {
     "Tahiti" <-> "Moorea" : 17,
@@ -31,7 +31,7 @@ tataitahi i roto 1..=7 { amui(arbre, i); }   // dans l'ordre : l'AVL se rééqui
 faaite arbre;
 ```
 
-```
+```sortie
 on atteint Tahiti
 on atteint Moorea
 on atteint Huahine

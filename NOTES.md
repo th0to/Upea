@@ -5,7 +5,7 @@ graphes (`upea`), transpilé en Python. La spécification est dans
 [`projet/specification.md`](projet/specification.md), et les programmes d'exemple dans
 [`projet/exemples/`](projet/exemples/).
 
-```
+```upea
 tuu iles = upea { "Tahiti" <-> "Moorea" : 17, "Moorea" -> "Huahine" : 160 };
 tataitahi ile roto iles mai "Tahiti" aano {
     faaite "on atteint", ile;
