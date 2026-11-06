@@ -262,12 +262,6 @@ def lignes_du_programme(
     return lignes
 
 
-def ligne_fautive(exc: BaseException, cartes: Mapping[str, SourceMap]) -> int | None:
-    """La ligne Upea de la frame la plus profonde qui provient du programme."""
-    lignes = lignes_du_programme(exc, cartes)
-    return lignes[-1] if lignes else None
-
-
 # --- Traduction des exceptions Python -------------------------------------------------
 
 #: Le nom Upea des sortes, d'après le nom de leur classe Python.

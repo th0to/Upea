@@ -284,8 +284,6 @@ class Programme:
     pos: Position = _pos()
 
 
-type Noeud = Expr | Instr | Programme | Bloc | Branche | Arete | Parametre | TypeNote
-
 # --- Parcours génériques --------------------------------------------------------
 
 

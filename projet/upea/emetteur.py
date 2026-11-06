@@ -49,9 +49,5 @@ class Emetteur:
         finally:
             self._source = precedente
 
-    @property
-    def nombre_de_lignes(self) -> int:
-        return len(self._lignes)
-
     def texte(self) -> str:
         return "".join(ligne + "\n" for ligne in self._lignes)
