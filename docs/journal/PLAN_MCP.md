@@ -1,3 +1,5 @@
+> Document de travail, état au commit `c9a5961` (4 novembre 2026). Il n'est plus tenu à jour.
+
 # Plan : le serveur MCP d'Upea
 
 > Plan validé le 4 novembre 2026, avec ces réponses et ces ajouts.

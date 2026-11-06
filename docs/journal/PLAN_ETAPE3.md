@@ -1,3 +1,5 @@
+> Document de travail, état au commit `6d64da9` (6 novembre 2026). Il n'est plus tenu à jour.
+
 # Étape 3 — corriger les bugs retenus par le conseil : plan
 
 État de départ : commit `ce53700`, branche `master`. Ce plan attend ta validation :

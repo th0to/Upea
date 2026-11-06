@@ -1,3 +1,5 @@
+> Document de travail, état au commit `9dc63d7` (3 novembre 2026). Il n'est plus tenu à jour.
+
 # Plan de correction — audit d'Upea
 
 État de départ : commit `c694f95 v1.1`, arbre de travail propre.
