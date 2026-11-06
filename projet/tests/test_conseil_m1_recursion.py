@@ -58,8 +58,12 @@ faaite hauteur(t), teitei(t);
 
 SANS_FIN = "ohipa f(n) { hoi f(n + 1); }\nfaaite f(0);\n"
 
+#: Une liste imbriquée 50 000 fois. Son affichage déborde la pile C de CPython, dont
+#: le seuil dépend du système : vers 1 000 niveaux sous Windows, entre 2 000 et 5 000
+#: sous Linux. 50 000 dépasse tous ces seuils, et même la limite de récursion de
+#: Python (20 000) : l'erreur arrive partout. La liste se construit en un instant.
 LISTE_IMBRIQUEE = (
-    "tuu l = [];\ntataitahi i roto 0..2000 { l = [l]; }\nfaaite parau(l);\n"
+    "tuu l = [];\ntataitahi i roto 0..50000 { l = [l]; }\nfaaite parau(l);\n"
 )
 
 

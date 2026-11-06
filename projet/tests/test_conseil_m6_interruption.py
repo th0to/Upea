@@ -53,8 +53,13 @@ def test_run_rend_le_code_130(
     assert sortie.err == "upea : interrompu\n"
 
 
-#: Une boucle finie, de l'ordre de deux secondes : sans interruption, elle se termine.
-LONGUE = "tuu s = 0;\ntataitahi i roto 0..20000000 { s = s + i; }\nfaaite s;\n"
+#: Une boucle finie (une dizaine de secondes ici : sans interruption, elle se
+#: termine), interrompue au bout de 0,3 à 0,5 s. Sa durée dépend de la machine, pas du
+#: test : elle doit seulement durer bien plus que le délai de l'interruption, sans quoi
+#: le Ctrl-C simulé tomberait après la boucle, sur pytest lui-même.
+LONGUE = "tuu s = 0;\ntataitahi i roto 0..100000000 { s = s + i; }\nfaaite s;\n"
+#: Le plus long qu'on accepte entre l'interruption et le retour (machines lentes).
+REACTION = 5.0
 
 
 def _apres(secondes: float) -> threading.Timer:
@@ -74,7 +79,7 @@ def test_un_vrai_ctrl_c_dans_le_repl() -> None:
     finally:
         minuteur.cancel()
     assert sortie.sortie == "interrompu\n"
-    assert time.monotonic() - debut < 1.5
+    assert time.monotonic() - debut < REACTION
     assert session.send("faaite x;").sortie == "42\n"
 
 
@@ -83,11 +88,13 @@ def test_un_vrai_ctrl_c_dans_run(
 ) -> None:
     fichier = tmp_path / "long.upea"
     fichier.write_text(LONGUE, encoding="utf-8")
+    debut = time.monotonic()
     minuteur = _apres(0.5)
     try:
         code = main(["run", str(fichier)])
     finally:
         minuteur.cancel()
     assert code == INTERROMPU
+    assert time.monotonic() - debut < REACTION
     erreurs = capsys.readouterr().err
     assert erreurs == "upea : interrompu\n"
