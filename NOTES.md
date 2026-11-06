@@ -196,4 +196,4 @@ tirages au lieu de 30), sont décrits dans le [guide du
 développeur](docs/developpement.md#3-les-tests).
 
 La liste de contrôle de livraison, qui dit où chaque exigence du cours est remplie, est
-dans [`PLAN_LIVRAISON.md`](PLAN_LIVRAISON.md).
+dans le [plan de livraison](docs/journal/PLAN_LIVRAISON.md#6-liste-de-contrôle-de-livraison) (§6).

@@ -1,3 +1,5 @@
+> Document de travail : le plan de la livraison, terminé le 6 novembre 2026 avec la liste de contrôle du §6. Il n'est plus tenu à jour.
+
 # Livraison d'Upea : plan
 
 État de départ : commit `5e64cfa`, branche `master`.
@@ -588,5 +590,80 @@ Chaque question est fermée ; la recommandation est en premier.
 
 ## 6. Liste de contrôle de livraison
 
-Remplie au lot 13 : chaque exigence du §1, et l'endroit où elle est remplie (fichier,
-section, test ou commande), ou la raison de l'écart.
+Remplie au lot 13, le 6 novembre 2026. Les chemins partent de la racine du dépôt.
+
+### 6.1 La vérification de livraison
+
+Faite sur le commit `68b6a7c` (le dernier avant ce lot, qui ne touche que de la
+documentation), sous Windows, `uv` appelé par son chemin complet :
+
+| Vérification | Résultat |
+|---|---|
+| clone neuf, dans `%TEMP%`, hors du dépôt | 116 fichiers suivis |
+| `uv sync`, tel qu'écrit dans le README | **échec** : « incompatible hardlinks » (erreur 396). Le cache de uv est lié au `.venv` du dépôt, qui est dans OneDrive. Après ce premier échec, l'environnement était à moitié installé, et `uv run pytest` trouvait le pytest du système. Parade : supprimer le `.venv`, poser `UV_LINK_MODE=copy`, relancer ; elle est écrite dans `docs/developpement.md` (§1) |
+| `uv sync`, avec `UV_LINK_MODE=copy`, sur un `.venv` neuf | réussi |
+| `uv run pytest projet` | 1 360 réussis, 4 ignorés (Graphviz) ; 1 361 après ce lot, qui ajoute un document au test des liens |
+| `uv run mypy projet`, `ruff check`, `ruff format --check` | aucune erreur (75 fichiers ; 76 fichiers formatés) |
+| `run exemples/05_motu.upea`, `check exemples/06_tahua.upea` | sortie identique au `.attendu` ; « aucune erreur » |
+| `transpile … -o fibo.py`, puis `python fibo.py` | le fichier se lance seul |
+| `uv sync --no-dev --group mcp`, puis `python -m upea mcp` | pytest retiré, `mcp` gardé ; le serveur démarre, et s'arrête à la fin de l'entrée |
+| `git archive --format=zip --prefix=upea/ HEAD`, extraite dans `%TEMP%`, puis `uv sync` et `uv run pytest projet` | 398 Kio, 116 fichiers, ni `council/`, ni `.claude/`, ni cache ; 1 360 réussis, 4 ignorés |
+| liens internes de toute la documentation | vérifiés par `test_livraison_documentation.py` (un cas par document) |
+| liens externes (uv, MCP, Claude Code) | non vérifiés |
+| `claude mcp add`, Claude Desktop, MCP Inspector | non vérifiables ici (ni `claude` ni Claude Desktop sur cette machine ; Inspector télécharge un paquet npm) |
+
+### 6.2 Chaque exigence du cours
+
+| # | Exigence (§1) | Où elle est remplie |
+|---|---|---|
+| R1, R3 | un `.zip` par jour, nom et date | à produire par vous : `git archive --format=zip --prefix=upea/ -o ..\marinier_AAAA-MM-JJ.zip HEAD` (vérifiée ci-dessus) |
+| R2 | format libre | — |
+| R4 | un `NOTES.md` | `NOTES.md` |
+| R5 | sans caches | l'archive n'en contient aucun (§6.1) |
+| R6 | le code et les tests | `projet/upea/`, `projet/tests/` ; organisation : `docs/developpement.md` §3 |
+| R7 | la démarche | `docs/journal/` (chronologie, plans, rapport du conseil) |
+| L1 | la chaîne, écrite à la main | `docs/architecture.md` §1 à §7 ; aucune dépendance (`pyproject.toml`) |
+| L2 | spécification validée par l'enseignant | `NOTES.md`, *Avancement* : **date à remplir par vous** |
+| L3 | spécification d'après le gabarit | `projet/specification.md` |
+| L4 | au moins cinq exemples et leurs `.attendu` | 10 exemples ; `test_etape_01_exemples.py` |
+| L5 | `pytest`, `mypy`, `ruff check` | README, *Qualité* ; vérifiés dans le clone (§6.1) |
+| L6 | tests nommés `etape_NN`, `mcp_NN` | `test_etape_NN_*` ; le serveur est `test_extension_18_*`, écart expliqué dans `NOTES.md` |
+| L7, L8 | CLI et REPL | `cli.py`, `repl.py` ; `test_etape_09_cli_repl.py` ; `docs/architecture.md` §8 |
+| L9 | `mypy --strict` | `pyproject.toml` ; passe sur `projet/`, tests compris, pour win32, linux et darwin |
+| L10 | extensions | 11, 12, 13, et 14 à 18 : `NOTES.md`, *Avancement* |
+| L11 | `transpile --sourcemap` | `NOTES.md`, *Pour vérifier* ; `test_extension_13_sourcemaps.py` |
+| L12 | les critères d'évaluation | `NOTES.md` : avancement, correspondance avec le cours, notions Python mobilisées |
+| M1 | un paquet `serveur_monlangage/` | fait autrement : `NOTES.md`, *Correspondance* |
+| M2 | le serveur « bonjour » | non fait : `NOTES.md` |
+| M3 | `tokenize`, `parse`, `check` | lot 2b ; `docs/mcp.md` §3 |
+| M4 | instructions et docstrings pour une IA | `serveur_mcp.INSTRUCTIONS` et les docstrings des outils ; `docs/mcp.md` §2 |
+| M5 | `transpile` avec source map, `format` avec `modifie` | fait autrement : `NOTES.md` |
+| M6 | `run(source, delai)`, statuts, durée | lot 2b pour le délai ; statuts faits autrement ; durée non faite : `NOTES.md` |
+| M7 | environnement réduit, testé | lot 2b ; `test_extension_18_bac_a_sable.py` |
+| M8 | context manager de nettoyage | fait autrement : `NOTES.md` |
+| M9 | discussion de sécurité dans la docstring | `projet/upea/bac_a_sable.py` (lot 3) |
+| M10 | ressources, prompts dont `corriger_programme` | lot 2b ; `docs/mcp.md` §4 et §5 |
+| M11 | point d'entrée testé en stdio | `test_extension_18_mcp.py` (`test_de_bout_en_bout_*`) |
+| M12 | `projet/mcp.exemple.json`, testé | lot 11 ; `test_l_exemple_de_configuration_lance_le_serveur` |
+| M13 | le scénario de l'exercice final, en test | non fait : `NOTES.md` |
+| M14 | l'exercice final réel, sa trace, vos observations | **à faire par vous** : `NOTES.md`, *Exercice final* ; la trace ira dans `docs/journal/exercice-final/` |
+| — | usage d'un assistant IA | `NOTES.md`, *Usage d'un assistant IA* : **brouillon à réécrire par vous** |
+
+### 6.3 Ce qui reste de votre côté
+
+1. Remplir les deux `[DATE À REMPLIR]` de `NOTES.md` (la validation de la
+   spécification).
+2. Réécrire la section *Usage d'un assistant IA* de `NOTES.md`, marquée
+   `<!-- À RELIRE PAR THOMAS -->`.
+3. Faire l'exercice final du projet MCP, ranger la trace dans
+   `docs/journal/exercice-final/`, et écrire vos observations dans `NOTES.md`.
+4. Confirmer le format de livraison avec l'enseignant, puis produire l'archive
+   (§6.2, R1). Si vous poussez le dépôt sur GitHub, la CI tournera, et le README pourra
+   le dire.
+5. Décider d'une licence (aucune pour l'instant).
+6. Faire relire le vocabulaire tahitien (`NOTES.md`, *Choix à signaler*).
+7. Restent en écart, signalés dans `NOTES.md` : le serveur « bonjour », la source map
+   et le champ `modifie`, la durée d'exécution, le scénario scripté de l'exercice
+   final. L'environnement réduit de l'enfant n'a été essayé que sous Windows.
+8. Le tutoriel fait 654 lignes, un peu plus que les 600 annoncées au lot 9 : à
+   raccourcir si vous le trouvez trop long.

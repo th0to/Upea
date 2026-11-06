@@ -17,7 +17,7 @@ D'après `git log`, en 2026 :
 | 4 novembre | le serveur MCP, lot par lot : squelette, atelier, bac à sable et son plafond de mémoire, outils, signatures des prédéfinies, ressources, prompts, tests de bout en bout, documentation | `ceb03b4` à `c9a5961` ([`PLAN_MCP.md`](PLAN_MCP.md)) |
 | 5 novembre | la CI (GitHub Actions) et mypy sur toutes les plateformes ; puis l'audit du conseil, sur ce commit | `ce53700` ([rapport](conseil/RAPPORT-FINAL.md)) |
 | 5 et 6 novembre | les corrections retenues par le conseil : L1, M1 à M6, L2, L4, L5, L6 | `dd46173` à `498adfe`, puis `5e64cfa` ([`PLAN_ETAPE3.md`](PLAN_ETAPE3.md), écrit en `6d64da9`) |
-| 6 novembre | la livraison : nettoyage, code mort, outils MCP manquants, docstrings, mise en forme, test de la documentation, documentation | à partir de `82a815c` ([`PLAN_LIVRAISON.md`](../../PLAN_LIVRAISON.md)) |
+| 6 novembre | la livraison : nettoyage, code mort, outils MCP manquants, docstrings, mise en forme, test de la documentation, documentation | à partir de `82a815c` ([`PLAN_LIVRAISON.md`](PLAN_LIVRAISON.md)) |
 
 ## Les documents
 
@@ -26,7 +26,7 @@ D'après `git log`, en 2026 :
 | [`PLAN.md`](PLAN.md) | le premier audit d'Upea, et le plan de ses corrections | `9dc63d7` |
 | [`PLAN_MCP.md`](PLAN_MCP.md) | ce que le SDK `mcp` v2 demande, l'architecture du serveur, ses lots et ses décisions (D1 à D11) | `c9a5961` |
 | [`PLAN_ETAPE3.md`](PLAN_ETAPE3.md) | le plan des corrections du conseil, lot par lot, avec leurs mesures | `6d64da9` |
-| [`PLAN_LIVRAISON.md`](../../PLAN_LIVRAISON.md) | le plan de la livraison, l'inventaire du dépôt, et la liste de contrôle de livraison | le dernier commit |
+| [`PLAN_LIVRAISON.md`](PLAN_LIVRAISON.md) | le plan de la livraison, l'inventaire du dépôt, et la liste de contrôle de livraison | le dernier commit |
 
 ## Le conseil
 

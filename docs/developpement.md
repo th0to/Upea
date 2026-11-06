@@ -16,6 +16,11 @@ décrit le rôle de chaque module.
   Les tests rendent `upea` importable par `projet/tests/conftest.py`, et la CLI se lance
   depuis `projet/` : `uv run python -m upea …`.
 - Si `uv` n'est pas dans le `PATH`, appelez-le par son chemin complet.
+- Si `uv sync` échoue sur un lien physique (« The cloud operation cannot be performed
+  on a file with incompatible hardlinks », sous Windows, quand un autre environnement
+  du même cache est dans OneDrive), supprimez le `.venv` à moitié installé, posez
+  `UV_LINK_MODE=copy` (`$env:UV_LINK_MODE = "copy"` sous PowerShell), et relancez
+  `uv sync`. C'est arrivé en vérifiant la livraison sur un clone neuf.
 - Les fins de ligne sont LF partout (`.gitattributes`), quelle que soit la
   configuration de Git sur la machine.
 
