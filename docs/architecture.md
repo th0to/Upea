@@ -226,7 +226,7 @@ exemple.upea:2 : erreur d'exécution : indice hors limites
 ## 9. Le serveur MCP
 
 Le serveur (extension 18) prête le compilateur à une IA ; son usage est décrit dans
-le guide du serveur MCP, `docs/mcp.md`.
+le [guide du serveur MCP](mcp.md).
 
 - `atelier.py` : les outils sans exécution (`decouper`, `analyser_syntaxe`, `verifier`,
   `transpiler`, `formater`) sous forme de fonctions qui rendent des dataclasses. Une

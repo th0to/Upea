@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "upea": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/chemin/absolu/vers/le/depot/projet",
+        "python",
+        "-m",
+        "upea",
+        "mcp"
+      ]
+    }
+  }
+}

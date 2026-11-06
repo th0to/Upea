@@ -93,71 +93,13 @@ Le fichier produit par `transpile` se lance seul (`python fibo.py`) ;
 
 ## Le serveur MCP : apprendre Upea à une IA
 
-`python -m upea mcp` est un serveur [MCP](https://modelcontextprotocol.io) (en
-stdio) qui permet à une IA comme Claude d'apprendre Upea et de se servir du
-compilateur pour vérifier, exécuter et corriger ce qu'elle écrit :
-
-- **ressources** : la spécification (`upea://specification`), les exemples avec
-  leur sortie exacte (`upea://exemples`, `upea://exemples/05_motu`…), et les
-  signatures des fonctions prédéfinies, tirées du compilateur
-  (`upea://predefinies`) ;
-- **outils** : `verifier` (erreurs et avertissements, avec ligne et colonne),
-  `executer` (dans un sous-processus : 5 s par défaut et au plus, 512 Mo, 64 Kio
-  de sortie, et deux fois le délai en temps CPU), `tokenize` et `parse` (les tokens
-  et l'arbre syntaxique, pour comprendre une erreur), `transpiler` et `formater` ;
-- **prompts** : `ecrire_programme`, `corriger_programme` et
-  `traduire_depuis_python`.
-
-Le serveur dépend du SDK Python `mcp` (version 2), dans un groupe de dépendances à
-part : le compilateur, lui, n'en a aucune. `uv sync` l'installe avec les outils de
-développement ; pour le serveur seul : `uv sync --no-dev --group mcp`.
-
-Claude Code et Claude Desktop ne fixent pas le dossier courant du serveur :
-`uv run --directory` s'en charge. Dans les commandes ci-dessous, remplacer
-`<uv>` par le chemin de `uv` (absolu s'il n'est pas dans le `PATH`, par exemple
-`C:\Users\<vous>\AppData\Roaming\Python\Python311\Scripts\uv.exe`) et `<dépôt>`
-par le chemin absolu de ce dépôt.
-
-**Claude Code** ([documentation](https://code.claude.com/docs/en/mcp)) :
-
-```bash
-claude mcp add --transport stdio --scope user upea -- <uv> run --directory <dépôt>/projet python -m upea mcp
-claude mcp list        # upea doit être « Connected »
-```
-
-`--scope user` rend le serveur disponible dans tous les projets (sans cette option,
-dans le seul dossier courant). Dans une session, `/mcp` montre son état,
-`@upea:upea://specification` cite une ressource, et `/mcp__upea__ecrire_programme`
-lance un prompt. Sous Windows PowerShell 5.1, si `claude` est un script PowerShell
-(installation par npm), PowerShell peut retirer le `--` : lancer alors la commande
-depuis `cmd` ou Git Bash.
-
-**Claude Desktop** ([documentation](https://modelcontextprotocol.io/docs/develop/connect-local-servers)) :
-dans `claude_desktop_config.json` (`%APPDATA%\Claude\` sous Windows,
-`~/Library/Application Support/Claude/` sous macOS), puis quitter complètement
-Claude Desktop et le relancer :
-
-```json
-{
-  "mcpServers": {
-    "upea": {
-      "command": "C:\\Users\\<vous>\\AppData\\Roaming\\Python\\Python311\\Scripts\\uv.exe",
-      "args": ["run", "--directory", "C:\\<dépôt>\\projet", "python", "-m", "upea", "mcp"]
-    }
-  }
-}
-```
-
-La sortie d'erreur du serveur est dans `%APPDATA%\Claude\logs\mcp-server-upea.log`
-(`~/Library/Logs/Claude/` sous macOS).
-
-**MCP Inspector** (une application Node.js, ≥ 22.19 ; rien à installer côté
-Python) :
-
-```bash
-npx @modelcontextprotocol/inspector <uv> run --directory <dépôt>/projet python -m upea mcp
-npx @modelcontextprotocol/inspector --cli <uv> run --directory <dépôt>/projet python -m upea mcp --method tools/list
-```
+`uv run python -m upea mcp` est un serveur [MCP](https://modelcontextprotocol.io)
+(en stdio) qui permet à une IA comme Claude d'apprendre Upea, puis de se servir du
+compilateur pour vérifier, corriger et exécuter ce qu'elle écrit : des ressources (la
+spécification, les exemples, les fonctions prédéfinies), six outils (`tokenize`,
+`parse`, `verifier`, `formater`, `transpiler`, `executer`) et trois prompts. Ses
+outils, ses limites et son branchement dans Claude Code, Claude Desktop ou MCP
+Inspector sont décrits dans [`docs/mcp.md`](docs/mcp.md).
 
 ## La documentation
 
@@ -167,6 +109,7 @@ npx @modelcontextprotocol/inspector --cli <uv> run --directory <dépôt>/projet 
 | [`NOTES.md`](NOTES.md) | l'enseignant | l'avancement étape par étape, les choix et les limites, les modifications depuis la validation de la spécification |
 | [`docs/tutoriel.md`](docs/tutoriel.md) | qui veut apprendre Upea | une progression pas à pas, du premier programme aux graphes et aux arbres ordonnés, avec des exercices corrigés |
 | [`docs/architecture.md`](docs/architecture.md) | un développeur, le jury | la chaîne de compilation, le prélude, le REPL, le serveur MCP, le rôle de chaque module, les choix de conception |
+| [`docs/mcp.md`](docs/mcp.md) | qui branche le serveur MCP | ses outils, ressources et prompts, les limites du bac à sable, le branchement dans Claude Code, Claude Desktop et MCP Inspector |
 | [`docs/developpement.md`](docs/developpement.md) | un contributeur | l'environnement, les vérifications, l'organisation des tests, la CI, et des recettes : ajouter une prédéfinie, un backend, un mot-clé |
 | [`docs/journal/`](docs/journal/) | qui veut retracer la démarche | les plans de travail successifs |
 

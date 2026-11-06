@@ -60,7 +60,7 @@ tous.
 | 4 | dossier temporaire, environnement réduit, mémoire bornée, context manager qui tue le fils | aucun fichier : la requête passe par l'entrée standard du fils ; environnement réduit ; mémoire et temps CPU bornés (pas de plafond de mémoire sous macOS) ; `communicate` avec délai, puis `kill` | fait autrement |
 | 4 | la discussion de sécurité dans la docstring du module de bac à sable | la docstring de `bac_a_sable.py` | aucun |
 | 5 | ressources (spécification, exemples), refus de la traversée de chemin ; prompts `ecrire_programme`, `corriger_programme` | les mêmes, plus `upea://predefinies` et le prompt `traduire_depuis_python` | aucun |
-| 6 | point d'entrée testé en stdio ; `projet/mcp.exemple.json` testé ; scénario de l'exercice final écrit comme un test ; exercice réel | point d'entrée testé en stdio ; pas de `mcp.exemple.json` ; pas de scénario scripté ; exercice réel : voir plus bas | non fait, sauf le test en stdio |
+| 6 | point d'entrée testé en stdio ; `projet/mcp.exemple.json` testé ; scénario de l'exercice final écrit comme un test ; exercice réel | point d'entrée testé en stdio ; [`projet/mcp.exemple.json`](projet/mcp.exemple.json), testé ; pas de scénario scripté ; exercice réel : voir plus bas | le scénario scripté et l'exercice réel restent à faire |
 
 ## Choix à signaler
 

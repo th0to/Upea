@@ -730,3 +730,19 @@ async def test_de_bout_en_bout_avec_le_client_du_sdk() -> None:
         assert resultat.structured_content["sortie"] == "42\n"
         exemple = await lire_ressource(client, "upea://exemples/01_ia_ora_na")
         assert lire(EXEMPLES / "01_ia_ora_na.upea") in exemple
+
+
+# --- L'exemple de configuration (mcp/etapes/06_integration.md, consigne 4) ------------
+
+
+def test_l_exemple_de_configuration_lance_le_serveur() -> None:
+    """`projet/mcp.exemple.json` est un JSON valide, qui lance `python -m upea mcp`
+    depuis `projet/` (`uv run --directory`)."""
+    configuration = json.loads(lire(PROJET / "mcp.exemple.json"))
+    [(nom, serveur)] = configuration["mcpServers"].items()
+    assert nom == "upea"
+    assert serveur["command"] == "uv"
+    arguments = serveur["args"]
+    assert arguments[:2] == ["run", "--directory"]
+    assert arguments[2].replace("\\", "/").endswith("/projet")
+    assert arguments[3:] == ["python", "-m", "upea", "mcp"]
